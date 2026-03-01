@@ -55,16 +55,21 @@ function calcResources(resources, months, rateAdj, complexity) {
 }
 
 function calcPhaseWeeks(months) {
-  const totalWeeks = months * 4.33;
-  let cumulative = 0;
+  const totalWeeks = Math.round(months * 4.33);
+  // Compute raw durations
+  const rawDurs = PHASES.map(p => p.fraction * totalWeeks);
+  // Round each, then fix the last to consume exactly remaining weeks
+  let assigned = 0;
   return PHASES.map((p, i) => {
-    const startWeek = Math.round(cumulative) + 1;
-    const rawDur = p.fraction * totalWeeks;
-    const duration = i === PHASES.length - 1
-      ? Math.round(totalWeeks) - startWeek + 1
-      : Math.max(1, Math.round(rawDur));
-    cumulative += rawDur;
-    return { ...p, startWeek, duration, totalWeeks: Math.round(totalWeeks) };
+    const startWeek = assigned + 1;
+    let duration;
+    if (i === PHASES.length - 1) {
+      duration = totalWeeks - assigned;
+    } else {
+      duration = Math.max(1, Math.round(rawDurs[i]));
+    }
+    assigned += duration;
+    return { ...p, startWeek, duration, totalWeeks };
   });
 }
 
@@ -274,6 +279,138 @@ function printProposal(months, computed, phases, clientName, importantNotice, cu
   setTimeout(() => URL.revokeObjectURL(url), 15000);
 }
 
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function Dashboard({ onSelectTool, onSignOut }) {
+  const tools = [
+    {
+      id: "calculator",
+      title: "Implementation Calculator",
+      description: "T&M scoping tool for Avature implementations. Configure phases, complexity, resources and export a professional proposal.",
+      icon: "📊",
+      status: "live",
+      color: "#1A6B7C",
+    },
+    {
+      id: "proposal",
+      title: "Business Proposal Generator",
+      description: "Generate comprehensive, branded business proposals tailored to client requirements and Avature solutions.",
+      icon: "📋",
+      status: "coming",
+      color: "#2E6DB4",
+    },
+    {
+      id: "ai-maturity",
+      title: "AI Maturity Self-Assessment",
+      description: "Evaluate your organisation's AI readiness across key dimensions and receive a tailored roadmap.",
+      icon: "🧠",
+      status: "coming",
+      color: "#7C3AED",
+    },
+  ];
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: "linear-gradient(135deg,#060D18 0%,#0D2A3A 60%,#060D18 100%)",
+      fontFamily: "'DM Sans','Segoe UI',sans-serif",
+      color: "#F9FAFB",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
+        *{box-sizing:border-box}
+        .tool-card{transition:all 0.2s ease;cursor:pointer}
+        .tool-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,0.4)!important}
+        .tool-card-disabled{cursor:not-allowed;opacity:0.55}
+        .tool-card-disabled:hover{transform:none!important}
+        .signout-dash:hover{color:#F9FAFB!important}
+      `}</style>
+
+      {/* Header */}
+      <div style={{background:"linear-gradient(180deg,#0D1B30 0%,#060D18 100%)", borderBottom:"1px solid #1F2937", padding:"0 40px"}}>
+        <div style={{maxWidth:1100, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"20px 0"}}>
+          <div style={{display:"flex", alignItems:"center", gap:16}}>
+            <img src={LOGO_URI} alt="Avature" style={{height:24, filter:"brightness(0) invert(1)"}}/>
+            <div style={{width:1, height:20, background:"#1F2937"}}/>
+            <span style={{fontSize:14, color:"#6B7280", fontWeight:500}}>Professional Services</span>
+          </div>
+          <button className="signout-dash" onClick={onSignOut} style={{
+            background:"transparent", border:"none", color:"#374151",
+            fontSize:13, cursor:"pointer", fontFamily:"inherit", transition:"color 0.2s",
+          }}>Sign out</button>
+        </div>
+      </div>
+
+      {/* Hero */}
+      <div style={{maxWidth:1100, margin:"0 auto", padding:"64px 40px 40px"}}>
+        <div style={{marginBottom:8}}>
+          <span style={{fontSize:12, color:"#1A6B7C", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase"}}>Avature Tools</span>
+        </div>
+        <h1 style={{fontSize:36, fontWeight:700, margin:"0 0 12px", lineHeight:1.2, color:"#F9FAFB"}}>
+          Professional Services Hub
+        </h1>
+        <p style={{fontSize:16, color:"#6B7280", margin:0, maxWidth:520, lineHeight:1.6}}>
+          A suite of tools to support scoping, proposals, and client engagement across the full Avature implementation lifecycle.
+        </p>
+      </div>
+
+      {/* Tool Cards */}
+      <div style={{maxWidth:1100, margin:"0 auto", padding:"0 40px 80px"}}>
+        <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))", gap:24}}>
+          {tools.map(tool => {
+            const isLive = tool.status === "live";
+            return (
+              <div
+                key={tool.id}
+                className={"tool-card" + (isLive ? "" : " tool-card-disabled")}
+                onClick={() => isLive && onSelectTool(tool.id)}
+                style={{
+                  background:"#0D1117",
+                  border:"1px solid " + (isLive ? tool.color + "44" : "#1F2937"),
+                  borderRadius:16,
+                  padding:"32px 28px",
+                  boxShadow:"0 4px 24px rgba(0,0,0,0.3)",
+                  position:"relative",
+                  overflow:"hidden",
+                }}>
+                {/* Top accent bar */}
+                <div style={{position:"absolute", top:0, left:0, right:0, height:2, background: isLive ? ("linear-gradient(90deg," + tool.color + "," + tool.color + "88)") : "#1F2937"}}/>
+
+                {/* Status badge */}
+                <div style={{position:"absolute", top:20, right:20}}>
+                  {isLive
+                    ? <span style={{background:"#14532D44", border:"1px solid #166534", color:"#4ADE80", fontSize:10, fontWeight:700, borderRadius:20, padding:"3px 10px", letterSpacing:"0.08em"}}>LIVE</span>
+                    : <span style={{background:"#1F2937", border:"1px solid #374151", color:"#6B7280", fontSize:10, fontWeight:600, borderRadius:20, padding:"3px 10px", letterSpacing:"0.08em"}}>COMING SOON</span>
+                  }
+                </div>
+
+                {/* Icon */}
+                <div style={{
+                  width:52, height:52, borderRadius:14,
+                  background: tool.color + "18",
+                  border:"1px solid " + tool.color + "33",
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:26, marginBottom:20,
+                }}>{tool.icon}</div>
+
+                {/* Text */}
+                <h3 style={{fontSize:17, fontWeight:700, margin:"0 0 10px", color: isLive ? "#F9FAFB" : "#6B7280", lineHeight:1.3}}>{tool.title}</h3>
+                <p style={{fontSize:13, color:"#6B7280", margin:"0 0 24px", lineHeight:1.6}}>{tool.description}</p>
+
+                {/* CTA */}
+                {isLive && (
+                  <div style={{display:"flex", alignItems:"center", gap:6, color: tool.color, fontSize:13, fontWeight:600}}>
+                    Open tool <span style={{fontSize:16}}>→</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── LOGIN PAGE ───────────────────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
   const [user, setUser] = useState("");
@@ -321,11 +458,11 @@ function LoginPage({ onLogin }) {
         {/* Logo */}
         <div style={{textAlign:"center", marginBottom:32}}>
           <img src={LOGO_URI} alt="Avature" style={{height:28, filter:"brightness(0) invert(1)", marginBottom:20}}/>
-          <div style={{fontSize:13, color:"#6B7280", letterSpacing:"0.05em"}}>Implementation Calculator</div>
+          <div style={{fontSize:13, color:"#6B7280", letterSpacing:"0.05em"}}>Avature Tools</div>
         </div>
 
         <div style={{fontSize:20, fontWeight:700, color:"#F9FAFB", marginBottom:8, textAlign:"center"}}>Welcome back</div>
-        <div style={{fontSize:13, color:"#6B7280", marginBottom:32, textAlign:"center"}}>Sign in to access the calculator</div>
+        <div style={{fontSize:13, color:"#6B7280", marginBottom:32, textAlign:"center"}}>Sign in to access Avature Tools</div>
 
         <div style={{marginBottom:16}}>
           <label style={{display:"block",fontSize:12,color:"#9CA3AF",marginBottom:6,fontWeight:500,letterSpacing:"0.05em"}}>
@@ -729,6 +866,7 @@ function RateCard({ resources, rateAdj, onRateAdjChange, onRateChange, onDaysCha
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function TMCalculator() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [screen, setScreen] = useState("dashboard"); // "dashboard" | "calculator"
   const [months, setMonths] = useState(3);
   const [rateAdj, setRateAdj] = useState(0);
   const [complexity, setComplexity] = useState(25);
@@ -751,7 +889,13 @@ export default function TMCalculator() {
     document.title = "Avature T&M Calculator";
   }, []);
 
-  if (!loggedIn) return <LoginPage onLogin={() => setLoggedIn(true)} />;
+  if (!loggedIn) return <LoginPage onLogin={() => { setLoggedIn(true); setScreen("dashboard"); }} />;
+  if (screen === "dashboard") return (
+    <Dashboard
+      onSelectTool={id => id === "calculator" && setScreen("calculator")}
+      onSignOut={() => { setLoggedIn(false); setScreen("dashboard"); }}
+    />
+  );
 
   const currSym = CURRENCIES.find(c => c.code === currency)?.symbol || "$";
   const computed = calcResources(resources, months, rateAdj, complexity);
@@ -849,6 +993,11 @@ export default function TMCalculator() {
             <div style={{display:"flex",alignItems:"center",gap:16}}>
               <img src={LOGO_URI} alt="Avature" style={{height:22,filter:"brightness(0) invert(1)"}}/>
               <div style={{width:1,height:20,background:"#1F2937"}}/>
+              <button onClick={()=>setScreen("dashboard")} style={{background:"none",border:"none",padding:0,cursor:"pointer",color:"#4B5563",fontSize:13,fontFamily:"inherit",transition:"color 0.2s"}}
+                onMouseOver={e=>e.currentTarget.style.color="#9CA3AF"} onMouseOut={e=>e.currentTarget.style.color="#4B5563"}>
+                Tools
+              </button>
+              <span style={{color:"#374151",fontSize:13}}>›</span>
               <span style={{fontSize:13,color:"#6B7280"}}>Implementation Calculator</span>
               {clientName && (
                 <>
@@ -896,7 +1045,7 @@ export default function TMCalculator() {
                 onMouseOut={e=>{ if(freeWeeks===0) e.currentTarget.style.borderColor="#374151"; }}>
                 ↓ HTML
               </button>
-              <button className="signout" onClick={()=>setLoggedIn(false)}
+              <button className="signout" onClick={()=>setScreen("dashboard")}
                 style={{background:"transparent",border:"none",color:"#374151",fontSize:12,
                   cursor:"pointer",padding:"9px 4px",transition:"color 0.2s",fontFamily:"inherit"}}>
                 Sign out
