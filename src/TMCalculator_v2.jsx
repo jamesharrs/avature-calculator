@@ -1262,40 +1262,81 @@ function BusinessProposalWizard({ onBack }) {
     return "$" + n;
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = () => {
     setGenerating(true); setGenError(null);
-    try {
-      const selProducts = PROPOSAL_PRODUCTS.filter(p => form.products.includes(p.id)).map(p => p.label).join(", ");
-      const selPains = PAIN_POINTS.filter(p => form.painPoints.includes(p.id)).map(p => p.label).join(", ");
-      const client = form.clientName || "the organisation";
-      const prompt = `You are a senior enterprise sales consultant at Avature writing a business case for ${client} in the ${form.industry || "enterprise"} sector.
 
-Return ONLY a JSON object with these exact string keys. Use plain text, no markdown. Keep each value focused and professional:
+    // Small delay for UX feel, then generate locally
+    setTimeout(() => {
+      try {
+        const client = form.clientName || "the organisation";
+        const industry = form.industry || "enterprise";
+        const selProducts = PROPOSAL_PRODUCTS.filter(p => form.products.includes(p.id)).map(p => p.label);
+        const selPainLabels = PAIN_POINTS.filter(p => form.painPoints.includes(p.id)).map(p => p.label);
+        const hires = Number(form.annualHires);
+        const apps = Number(form.totalApplications);
+        const recruiters = Number(form.recruiterCount);
+        const visitors = Number(form.careerSiteVisitors);
+        const events = Number(form.events);
+        const ttf = form.timeToFillReduction;
+        const mobC = form.internalMobilityCurrent;
+        const mobT = form.internalMobilityTarget;
+        const jbR = form.jobBoardReduction;
+        const prodR = form.recruiterProductivity;
 
-{
-  "execSummary": "3-4 sentence executive summary for ${client}. Reference scale: ${form.annualHires || "large volume"} annual hires, ${form.totalApplications || "high"} applications, ${form.careerSiteVisitors || "significant"} career site visitors, ${form.recruiterCount || "large"} recruiters. Focus on why Avature's ${selProducts} address their specific needs.",
-  "execROI": "2 sentences stating ${client} could avoid ${fmtM(roi.totalLow)}–${fmtM(roi.totalHigh)} annually through recruiter productivity gains, time-to-fill reduction of ${form.timeToFillReduction}%, internal mobility increase and job board spend reduction.",
-  "challengeIntro": "2-3 sentences on ${client}'s TA environment. Challenges: ${selPains}${form.challengeContext ? ". Context: " + form.challengeContext : ""}. Be specific to ${form.industry || "their"} sector.",
-  "roiTimeToFill": "2 sentences on ${form.timeToFillReduction}% time-to-fill reduction across ${form.annualHires || "their"} annual hires and the vacancy cost and care delivery impact avoided.",
-  "roiMobility": "2 sentences on increasing internal mobility from ${form.internalMobilityCurrent}% to ${form.internalMobilityTarget}%, representing ${roi.mobilityLift} hires shifted from external to internal placement.",
-  "roiProductivity": "2 sentences on ${form.recruiterProductivity}% productivity improvement across ${form.recruiterCount || "the"} recruitment team through automation of sourcing, scheduling and reporting.",
-  "roiJobBoards": "2 sentences on ${form.jobBoardReduction}% job board spend reduction driven by proactive CRM pipelining, talent rediscovery and segmentation.",
-  "partnershipClose": "2-3 sentences on why Avature is the right long-term strategic partner for ${client}, referencing their ${form.industry || "industry"} context, Avature's average 10-year customer tenure and dedicated partnership model."
-}
+        // Industry-specific TA context phrases
+        const industryContext = {
+          "Healthcare": "where workforce availability directly affects patient outcomes and care delivery",
+          "Financial Services": "where regulatory compliance and specialist talent scarcity create persistent hiring pressure",
+          "Retail & Consumer": "where seasonal surges, high turnover and frontline volume require infrastructure that can flex at pace",
+          "Technology": "where competition for specialised talent is intense and employer brand is a primary differentiator",
+          "Manufacturing": "where frontline volume, skills verification and shift-based hiring create complex operational demands",
+          "Energy & Utilities": "where safety credentialing, regulatory compliance and specialised technical roles define hiring complexity",
+          "Logistics & Transportation": "where driver shortages, compliance requirements and high-volume seasonal hiring drive operational risk",
+          "Government & Public Sector": "where regulatory frameworks, equity requirements and lengthy approval processes shape every hire",
+          "Education": "where academic credentialing, seasonal intake cycles and high candidate expectations define the experience",
+          "Professional Services": "where project-based demand, billable utilisation and specialised skills make workforce agility critical",
+        };
+        const indCtx = industryContext[industry] || "where talent acquisition infrastructure is a direct enabler of organisational performance";
 
-Return ONLY valid JSON. No markdown fences.`;
+        // Build scale string
+        const scaleParts = [];
+        if (hires) scaleParts.push(`${hires.toLocaleString()} annual hires`);
+        if (apps) scaleParts.push(`${apps.toLocaleString()} applications`);
+        if (visitors) scaleParts.push(`${visitors.toLocaleString()} career site visitors`);
+        if (events) scaleParts.push(`${events.toLocaleString()} recruiting events`);
+        if (recruiters) scaleParts.push(`a sourcing team of ${recruiters.toLocaleString()}`);
+        const scaleStr = scaleParts.length > 0 ? scaleParts.join(", ") : "significant annual hiring volumes";
 
-      const resp = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1500, messages:[{role:"user",content:prompt}] }),
-      });
-      const data = await resp.json();
-      const text = data.content?.map(b=>b.text||"").join("").replace(/```json|```/g,"").trim();
-      setGeneratedContent(JSON.parse(text));
-      setStep(5);
-    } catch(e) { setGenError("Generation failed: " + e.message); }
-    finally { setGenerating(false); }
+        // Challenges narrative
+        const challengeParts = selPainLabels.length > 0
+          ? selPainLabels.slice(0, 3).join(", ").toLowerCase()
+          : "operational complexity and manual process burden";
+        const extraCtx = form.challengeContext ? ` ${form.challengeContext.trim()}.` : "";
+
+        const execSummary = `${client} operates in an environment ${indCtx}. With ${scaleStr}, Talent Acquisition is not simply a support function — it is a critical enabler of business performance. This document outlines how Avature's ${selProducts.join(", ")} platform can strengthen ${client}'s Talent Acquisition infrastructure and quantifies the expected return on investment from doing so. Avature provides a native, configurable automation platform that enables ${client} to centralise candidate data, automate high-volume workflows and deliver personalised outreach at scale — while maintaining data governance and integration reliability.`;
+
+        const execROI = `Based on ${client}'s scale and conservative efficiency benchmarks from comparable organisations, ${client} could avoid between ${fmtM(roi.totalLow)}–${fmtM(roi.totalHigh)} in annual expenditure through recruiter productivity improvements, time-to-fill reduction and centralised CRM data management. This estimate is modelled conservatively and reflects achievable outcomes consistent with Avature's customer base in the ${industry} sector.`;
+
+        const challengeIntro = `${client}'s Talent Acquisition environment is defined by ${challengeParts}${extraCtx ? " " + extraCtx : "."} Operating in ${industry} ${indCtx}, the organisation requires infrastructure that is scalable, automated and adaptable to evolving workforce strategies. Addressing these challenges requires a platform built for configurability and long-term strategic alignment — not a fixed-function system that constrains how recruiting operates.`;
+
+        const roiTimeToFill = `Applying a conservative ${ttf}% reduction in time-to-fill across ${hires ? hires.toLocaleString() : "annual"} hires reduces vacancy duration, premium labour exposure and the operational disruption caused by unfilled roles. For ${client}, this represents a meaningful reduction in both direct vacancy costs and the downstream productivity impact of delayed hiring — particularly in ${industry.toLowerCase()} where speed-to-productivity directly affects business outcomes.`;
+
+        const roiMobility = `Increasing internal mobility from ${mobC}% to ${mobT}% shifts ${roi.mobilityLift > 0 ? roi.mobilityLift.toLocaleString() : "a significant number of"} hires from external sourcing to internal placement — reducing cost-per-hire, accelerating ramp-up time and improving retention. For ${client}, this shift represents a compounding advantage: every internally filled role reduces external sourcing cost while simultaneously improving employee engagement and career development outcomes.`;
+
+        const roiProductivity = `A ${prodR}% improvement in recruiter productivity across ${recruiters ? client + "'s " + recruiters.toLocaleString() + "-person" : "the"} recruitment team increases requisition capacity without proportional headcount growth. Automation of sourcing, rediscovery, interview coordination and reporting frees recruiters to focus on relationship-building and high-judgement decisions — directly improving quality-of-hire and hiring manager satisfaction.`;
+
+        const roiJobBoards = `A ${jbR}% reduction in job board spend, driven by proactive CRM-based pipelining, talent rediscovery and segmentation, reduces dependency on paid channels and increases direct applicant flow. For ${client}, building a proprietary talent community means that over time, the most qualified candidates are already known, engaged and ready to act — reducing cost-per-application and improving time-to-shortlist.`;
+
+        const partnershipClose = `For an organisation of ${client}'s scale and complexity, selecting a Talent Acquisition platform is a long-term strategic decision — not a transactional software purchase. Avature's average customer tenure of 10 years, dedicated in-house implementation teams and Customer Advisory Board model are designed to ensure that the platform evolves alongside ${client}'s priorities in ${industry.toLowerCase()}. With direct access to product and engineering leadership, ${client} gains not only technology, but a sustained partnership built around its specific operating model and long-term workforce strategy.`;
+
+        setGeneratedContent({ execSummary, execROI, challengeIntro, roiTimeToFill, roiMobility, roiProductivity, roiJobBoards, partnershipClose });
+        setStep(5);
+      } catch(e) {
+        setGenError("Generation failed: " + e.message);
+      } finally {
+        setGenerating(false);
+      }
+    }, 1200);
   };
 
   const handleDownloadPPTX = async () => {
