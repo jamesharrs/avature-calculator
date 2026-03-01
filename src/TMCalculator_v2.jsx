@@ -1351,138 +1351,144 @@ function BusinessProposalWizard({ onBack }) {
       });
 
       const pptx = new window.PptxGenJS();
-      pptx.layout = "LAYOUT_WIDE";
-      pptx.title = `Avature Business Case — ${form.clientName || "Client"}`;
-      const C = { dark:"060D18", navy:"0D1B30", teal:"1A6B7C", blue:"2E6DB4", white:"FFFFFF", offWhite:"E2E8F0", muted:"64748B" };
+      pptx.layout = "LAYOUT_WIDE"; // 10 x 7.5 inches
+      const C = { dark:"060D18", navy:"0D1B30", teal:"1A6B7C", blue:"2E6DB4", white:"FFFFFF", offWhite:"E2E8F0", muted:"94A3B8" };
       const F = "Calibri";
       const client = form.clientName || "Client";
       const gc = generatedContent;
       const selProds = PROPOSAL_PRODUCTS.filter(p => form.products.includes(p.id));
+      // line helper — correct pptxgenjs format
+      const ln = (color) => ({ pt:1, color });
 
       const addSlide = () => {
         const sl = pptx.addSlide();
         sl.background = { color: C.navy };
-        sl.addShape("rect", { x:0, y:0, w:10, h:0.06, fill:{color:C.teal} });
+        sl.addShape("rect", { x:0, y:0, w:10, h:0.07, fill:{color:C.teal}, line:{type:"none"} });
         return sl;
       };
 
-      // SLIDE 1 — Cover
+      // ── SLIDE 1: Cover ──────────────────────────────────────────────────────
       const s1 = pptx.addSlide();
       s1.background = { color: C.dark };
-      s1.addShape("rect", { x:0, y:0, w:10, h:3.5, fill:{color:C.navy} });
-      s1.addShape("rect", { x:0, y:0, w:10, h:0.06, fill:{color:C.teal} });
-      s1.addText("BUSINESS CASE", { x:0.6, y:0.55, w:9, h:0.4, fontSize:11, bold:true, color:C.teal, fontFace:F, charSpacing:3 });
-      s1.addText(client, { x:0.6, y:1.05, w:9, h:1.2, fontSize:46, bold:true, color:C.white, fontFace:F });
-      s1.addShape("rect", { x:0.6, y:2.45, w:1.4, h:0.05, fill:{color:C.teal} });
-      s1.addText(selProds.map(p=>p.label).join(" · "), { x:0.6, y:2.6, w:9, h:0.5, fontSize:15, color:C.offWhite, fontFace:F });
-      s1.addShape("rect", { x:0, y:3.5, w:10, h:4.0, fill:{color:C.dark} });
-      s1.addText("Prepared by", { x:0.6, y:4.0, w:5, h:0.3, fontSize:11, color:C.muted, fontFace:F });
-      s1.addText(form.preparedBy || "Avature Professional Services", { x:0.6, y:4.35, w:6, h:0.45, fontSize:17, bold:true, color:C.white, fontFace:F });
-      if (form.industry) s1.addText(form.industry, { x:0.6, y:4.9, w:5, h:0.35, fontSize:13, color:C.muted, fontFace:F });
+      s1.addShape("rect", { x:0, y:0, w:10, h:3.6, fill:{color:C.navy}, line:{type:"none"} });
+      s1.addShape("rect", { x:0, y:0, w:10, h:0.07, fill:{color:C.teal}, line:{type:"none"} });
+      s1.addText("BUSINESS CASE", { x:0.6, y:0.5, w:9, h:0.4, fontSize:11, bold:true, color:C.teal, fontFace:F, charSpacing:3 });
+      s1.addText(client, { x:0.6, y:1.0, w:9, h:1.3, fontSize:44, bold:true, color:C.white, fontFace:F });
+      s1.addShape("rect", { x:0.6, y:2.5, w:1.4, h:0.06, fill:{color:C.teal}, line:{type:"none"} });
+      s1.addText(selProds.map(p=>p.label).join("  |  "), { x:0.6, y:2.65, w:9, h:0.5, fontSize:14, color:C.offWhite, fontFace:F });
+      s1.addShape("rect", { x:0, y:3.6, w:10, h:3.9, fill:{color:C.dark}, line:{type:"none"} });
+      s1.addText("Prepared by", { x:0.6, y:4.1, w:5, h:0.3, fontSize:11, color:C.muted, fontFace:F });
+      s1.addText(form.preparedBy || "Avature Professional Services", { x:0.6, y:4.45, w:7, h:0.5, fontSize:17, bold:true, color:C.white, fontFace:F });
+      if (form.industry) s1.addText(form.industry, { x:0.6, y:5.05, w:5, h:0.35, fontSize:13, color:C.muted, fontFace:F });
 
-      // SLIDE 2 — Executive Summary
+      // ── SLIDE 2: Executive Summary ─────────────────────────────────────────
       const s2 = addSlide();
-      s2.addText("Executive Summary", { x:0.5, y:0.22, w:9, h:0.6, fontSize:26, bold:true, color:C.white, fontFace:F });
-      s2.addShape("rect", { x:0.5, y:0.9, w:5.8, h:4.6, fill:{color:C.dark}, line:{color:C.teal,width:1} });
-      s2.addText(gc?.execSummary || "", { x:0.72, y:1.08, w:5.36, h:3.5, fontSize:13, color:C.offWhite, fontFace:F, valign:"top", wrap:true });
-      s2.addShape("rect", { x:6.5, y:0.9, w:3.2, h:1.9, fill:{color:C.teal} });
-      s2.addText("Potential Annual\nCost Avoidance", { x:6.6, y:1.0, w:3.0, h:0.55, fontSize:11, bold:true, color:C.white, fontFace:F, align:"center" });
-      s2.addText(fmtM(roi.totalLow)+"–"+fmtM(roi.totalHigh), { x:6.5, y:1.55, w:3.2, h:1.0, fontSize:30, bold:true, color:C.white, fontFace:F, align:"center" });
-      s2.addShape("rect", { x:6.5, y:2.95, w:3.2, h:2.55, fill:{color:C.dark}, line:{color:C.blue,width:1} });
-      s2.addText(gc?.execROI || "", { x:6.65, y:3.1, w:2.9, h:2.25, fontSize:11.5, color:C.offWhite, fontFace:F, valign:"top", wrap:true });
+      s2.addText("Executive Summary", { x:0.5, y:0.2, w:9, h:0.6, fontSize:26, bold:true, color:C.white, fontFace:F });
+      s2.addShape("rect", { x:0.5, y:0.9, w:5.7, h:4.7, fill:{color:C.dark}, line:ln(C.teal) });
+      s2.addText(gc ? gc.execSummary : "", { x:0.72, y:1.08, w:5.26, h:4.3, fontSize:12.5, color:C.offWhite, fontFace:F, valign:"top", wrap:true });
+      s2.addShape("rect", { x:6.45, y:0.9, w:3.25, h:2.0, fill:{color:C.teal}, line:{type:"none"} });
+      s2.addText("Potential Annual\nCost Avoidance", { x:6.45, y:1.05, w:3.25, h:0.6, fontSize:11, bold:true, color:C.white, fontFace:F, align:"center" });
+      s2.addText(fmtM(roi.totalLow)+" - "+fmtM(roi.totalHigh), { x:6.45, y:1.6, w:3.25, h:1.0, fontSize:26, bold:true, color:C.white, fontFace:F, align:"center" });
+      s2.addShape("rect", { x:6.45, y:3.05, w:3.25, h:2.55, fill:{color:C.dark}, line:ln(C.blue) });
+      s2.addText(gc ? gc.execROI : "", { x:6.6, y:3.18, w:2.95, h:2.3, fontSize:11, color:C.offWhite, fontFace:F, valign:"top", wrap:true });
 
-      // SLIDE 3 — Client Context
+      // ── SLIDE 3: Client Context ────────────────────────────────────────────
       const s3 = addSlide();
-      s3.addText(client+": Talent Acquisition Context", { x:0.5, y:0.22, w:9.5, h:0.6, fontSize:23, bold:true, color:C.white, fontFace:F });
-      s3.addText(gc?.challengeIntro || "", { x:0.5, y:0.88, w:9.5, h:0.9, fontSize:13, color:C.offWhite, fontFace:F, wrap:true });
+      s3.addText(client + ": Talent Acquisition Context", { x:0.5, y:0.2, w:9.2, h:0.6, fontSize:22, bold:true, color:C.white, fontFace:F });
+      s3.addText(gc ? gc.challengeIntro : "", { x:0.5, y:0.88, w:9.2, h:1.0, fontSize:12.5, color:C.offWhite, fontFace:F, wrap:true });
       const stats = [
-        {l:"Annual Hires",v:Number(form.annualHires).toLocaleString()},
-        {l:"Applications",v:Number(form.totalApplications).toLocaleString()},
-        {l:"Interviews / Year",v:Number(form.interviews).toLocaleString()},
-        {l:"Recruiting Events",v:Number(form.events).toLocaleString()},
+        {l:"Annual Hires",        v:Number(form.annualHires).toLocaleString()},
+        {l:"Applications",        v:Number(form.totalApplications).toLocaleString()},
+        {l:"Interviews / Year",   v:Number(form.interviews).toLocaleString()},
+        {l:"Recruiting Events",   v:Number(form.events).toLocaleString()},
         {l:"Career Site Visitors",v:Number(form.careerSiteVisitors).toLocaleString()},
-        {l:"Recruiters",v:Number(form.recruiterCount).toLocaleString()},
+        {l:"Recruiters",          v:Number(form.recruiterCount).toLocaleString()},
       ].filter(s => s.v && s.v !== "0" && s.v !== "NaN");
       stats.forEach((s,i) => {
         const col=i%3; const row=Math.floor(i/3);
-        const x=0.5+col*3.3; const y=2.05+row*1.65;
-        s3.addShape("rect", {x,y,w:3.1,h:1.5,fill:{color:C.dark},line:{color:C.teal,width:1}});
-        s3.addText(s.v, {x,y:y+0.1,w:3.1,h:0.75,fontSize:30,bold:true,color:C.teal,fontFace:F,align:"center"});
-        s3.addText(s.l, {x,y:y+0.9,w:3.1,h:0.4,fontSize:11,color:C.muted,fontFace:F,align:"center"});
+        const x=0.5+col*3.2; const y=2.1+row*1.7;
+        s3.addShape("rect", {x,y,w:3.0,h:1.55,fill:{color:C.dark},line:ln(C.teal)});
+        s3.addText(s.v, {x,y:y+0.12,w:3.0,h:0.78,fontSize:28,bold:true,color:C.teal,fontFace:F,align:"center"});
+        s3.addText(s.l, {x,y:y+0.95,w:3.0,h:0.4,fontSize:10,color:C.muted,fontFace:F,align:"center"});
       });
 
-      // SLIDE 4 — Financial Impact
+      // ── SLIDE 4: Financial Impact ──────────────────────────────────────────
       const s4 = addSlide();
-      s4.addText("Financial Impact Drivers", { x:0.5, y:0.22, w:9, h:0.6, fontSize:23, bold:true, color:C.white, fontFace:F });
+      s4.addText("Financial Impact Drivers", { x:0.5, y:0.2, w:9, h:0.6, fontSize:22, bold:true, color:C.white, fontFace:F });
       const roiItems = [
-        {n:"01",title:`Time-to-Fill Reduction (${form.timeToFillReduction}%)`,text:gc?.roiTimeToFill||""},
-        {n:"02",title:`Internal Mobility (${form.internalMobilityCurrent}%→${form.internalMobilityTarget}%)`,text:gc?.roiMobility||""},
-        {n:"03",title:`Recruiter Productivity (+${form.recruiterProductivity}%)`,text:gc?.roiProductivity||""},
-        {n:"04",title:`Job Board Spend Reduction (${form.jobBoardReduction}%)`,text:gc?.roiJobBoards||""},
+        {n:"01", title:"Time-to-Fill Reduction ("+form.timeToFillReduction+"%)", text:gc?gc.roiTimeToFill:""},
+        {n:"02", title:"Internal Mobility ("+form.internalMobilityCurrent+"%->"+form.internalMobilityTarget+"%)", text:gc?gc.roiMobility:""},
+        {n:"03", title:"Recruiter Productivity (+"+form.recruiterProductivity+"%)", text:gc?gc.roiProductivity:""},
+        {n:"04", title:"Job Board Spend Reduction ("+form.jobBoardReduction+"%)", text:gc?gc.roiJobBoards:""},
       ];
       roiItems.forEach((item,i) => {
         const col=i%2; const row=Math.floor(i/2);
-        const x=0.4+col*5.1; const y=0.98+row*2.45;
-        s4.addShape("rect", {x,y,w:4.85,h:2.3,fill:{color:C.dark},line:{color:C.blue,width:1}});
-        s4.addText(item.n, {x:x+0.15,y:y+0.12,w:0.5,h:0.45,fontSize:20,bold:true,color:C.teal,fontFace:F});
-        s4.addText(item.title, {x:x+0.62,y:y+0.14,w:4.1,h:0.45,fontSize:12,bold:true,color:C.white,fontFace:F,valign:"middle"});
-        s4.addText(item.text, {x:x+0.15,y:y+0.68,w:4.55,h:1.5,fontSize:11,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
+        const x=0.4+col*5.1; const y=0.95+row*2.5;
+        s4.addShape("rect", {x,y,w:4.85,h:2.35,fill:{color:C.dark},line:ln(C.blue)});
+        s4.addText(item.n, {x:x+0.15,y:y+0.1,w:0.55,h:0.5,fontSize:20,bold:true,color:C.teal,fontFace:F});
+        s4.addText(item.title, {x:x+0.65,y:y+0.12,w:4.05,h:0.48,fontSize:12,bold:true,color:C.white,fontFace:F,valign:"middle"});
+        s4.addShape("rect", {x:x+0.15,y:y+0.65,w:4.55,h:0.03,fill:{color:C.blue},line:{type:"none"}});
+        s4.addText(item.text, {x:x+0.15,y:y+0.75,w:4.55,h:1.48,fontSize:10.5,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
       });
-      s4.addShape("rect", {x:0.4,y:5.7,w:9.5,h:0.7,fill:{color:C.teal}});
-      s4.addText(`Estimated Total Annual Impact: ${fmtM(roi.totalLow)} – ${fmtM(roi.totalHigh)}`, {x:0.4,y:5.7,w:9.5,h:0.7,fontSize:16,bold:true,color:C.white,fontFace:F,align:"center",valign:"middle"});
+      s4.addShape("rect", {x:0.4,y:5.72,w:9.3,h:0.68,fill:{color:C.teal},line:{type:"none"}});
+      s4.addText("Estimated Total Annual Impact: "+fmtM(roi.totalLow)+" - "+fmtM(roi.totalHigh), {x:0.4,y:5.72,w:9.3,h:0.68,fontSize:15,bold:true,color:C.white,fontFace:F,align:"center",valign:"middle"});
 
-      // SLIDE 5 — Proposed Solutions
+      // ── SLIDE 5: Proposed Solutions ────────────────────────────────────────
       const s5 = addSlide();
-      s5.addText("Proposed Solutions", { x:0.5, y:0.22, w:9, h:0.6, fontSize:23, bold:true, color:C.white, fontFace:F });
-      const colW = 10.0 / selProds.length;
+      s5.addText("Proposed Solutions", { x:0.5, y:0.2, w:9, h:0.6, fontSize:22, bold:true, color:C.white, fontFace:F });
+      const nProds = selProds.length || 1;
+      const colW2 = (9.5 / nProds);
       selProds.forEach((p,i) => {
-        const x=0.35+i*colW;
-        s5.addShape("rect", {x,y:0.92,w:colW-0.2,h:5.6,fill:{color:C.dark},line:{color:C.teal,width:1}});
-        s5.addShape("rect", {x:x+0.15,y:1.06,w:colW-0.5,h:0.05,fill:{color:C.teal}});
-        s5.addText(p.icon, {x:x+0.15,y:1.2,w:0.75,h:0.6,fontSize:24,align:"center"});
-        s5.addText(p.label, {x:x+0.88,y:1.28,w:colW-1.15,h:0.55,fontSize:15,bold:true,color:C.white,fontFace:F,valign:"middle"});
-        s5.addText(PRODUCT_DETAILS[p.id]||p.desc, {x:x+0.2,y:2.0,w:colW-0.55,h:4.3,fontSize:11,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
+        const x = 0.25 + i * colW2;
+        const w = colW2 - 0.2;
+        s5.addShape("rect", {x,y:0.9,w,h:5.7,fill:{color:C.dark},line:ln(C.teal)});
+        s5.addShape("rect", {x,y:0.9,w,h:0.06,fill:{color:C.teal},line:{type:"none"}});
+        s5.addText(p.label, {x:x+0.15,y:1.05,w:w-0.3,h:0.55,fontSize:15,bold:true,color:C.white,fontFace:F});
+        s5.addText(PRODUCT_DETAILS[p.id]||p.desc, {x:x+0.15,y:1.7,w:w-0.3,h:4.7,fontSize:10.5,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
       });
 
-      // SLIDE 6 — Avature Advantage 1-4
+      // ── SLIDE 6: Avature Advantage 1-4 ────────────────────────────────────
       const s6 = addSlide();
-      s6.addText("The Avature Advantage", { x:0.5, y:0.22, w:9, h:0.6, fontSize:23, bold:true, color:C.white, fontFace:F });
+      s6.addText("The Avature Advantage", { x:0.5, y:0.2, w:9, h:0.6, fontSize:22, bold:true, color:C.white, fontFace:F });
       ADVANTAGES.slice(0,4).forEach((adv,i) => {
         const col=i%2; const row=Math.floor(i/2);
-        const x=0.4+col*5.1; const y=0.92+row*2.75;
-        s6.addShape("rect", {x,y,w:4.85,h:2.6,fill:{color:C.dark},line:{color:C.blue,width:1}});
-        s6.addText(adv.n+". "+adv.title, {x:x+0.15,y:y+0.12,w:4.55,h:0.5,fontSize:13,bold:true,color:C.white,fontFace:F});
-        s6.addShape("rect", {x:x+0.15,y:y+0.65,w:4.35,h:0.03,fill:{color:C.teal}});
-        s6.addText(adv.bullets.slice(0,4).map(b=>"• "+b).join("\n"), {x:x+0.15,y:y+0.75,w:4.55,h:1.72,fontSize:10.5,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
+        const x=0.4+col*5.0; const y=0.9+row*2.8;
+        s6.addShape("rect", {x,y,w:4.75,h:2.65,fill:{color:C.dark},line:ln(C.blue)});
+        s6.addText(adv.n+". "+adv.title, {x:x+0.15,y:y+0.1,w:4.45,h:0.52,fontSize:13,bold:true,color:C.white,fontFace:F});
+        s6.addShape("rect", {x:x+0.15,y:y+0.67,w:4.25,h:0.03,fill:{color:C.teal},line:{type:"none"}});
+        s6.addText(adv.bullets.slice(0,4).map(b=>"- "+b).join("\n"), {x:x+0.15,y:y+0.77,w:4.45,h:1.76,fontSize:10,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
       });
 
-      // SLIDE 7 — Avature Advantage 5-7
+      // ── SLIDE 7: Avature Advantage 5-7 ────────────────────────────────────
       const s7 = addSlide();
-      s7.addText("The Avature Advantage (cont.)", { x:0.5, y:0.22, w:9, h:0.6, fontSize:23, bold:true, color:C.white, fontFace:F });
+      s7.addText("The Avature Advantage (continued)", { x:0.5, y:0.2, w:9, h:0.6, fontSize:22, bold:true, color:C.white, fontFace:F });
       ADVANTAGES.slice(4).forEach((adv,i) => {
-        const x=0.4+i*3.45;
-        s7.addShape("rect", {x,y:0.92,w:3.25,h:4.65,fill:{color:C.dark},line:{color:C.blue,width:1}});
-        s7.addText(adv.n+". "+adv.title, {x:x+0.15,y:0.97+0.05,w:2.95,h:0.55,fontSize:12,bold:true,color:C.white,fontFace:F,wrap:true});
-        s7.addShape("rect", {x:x+0.15,y:1.6,w:2.8,h:0.03,fill:{color:C.teal}});
-        s7.addText(adv.bullets.map(b=>"• "+b).join("\n"), {x:x+0.15,y:1.7,w:2.95,h:3.74,fontSize:10,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
+        const x = 0.35 + i*3.3;
+        s7.addShape("rect", {x,y:0.9,w:3.1,h:4.7,fill:{color:C.dark},line:ln(C.blue)});
+        s7.addText(adv.n+". "+adv.title, {x:x+0.15,y:1.0,w:2.8,h:0.6,fontSize:12,bold:true,color:C.white,fontFace:F,wrap:true});
+        s7.addShape("rect", {x:x+0.15,y:1.65,w:2.8,h:0.03,fill:{color:C.teal},line:{type:"none"}});
+        s7.addText(adv.bullets.map(b=>"- "+b).join("\n"), {x:x+0.15,y:1.75,w:2.8,h:3.72,fontSize:9.5,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
       });
-      s7.addShape("rect", {x:0.4,y:5.7,w:9.5,h:0.7,fill:{color:C.dark},line:{color:C.teal,width:1}});
-      s7.addText(gc?.partnershipClose||"", {x:0.55,y:5.7,w:9.2,h:0.7,fontSize:11,color:C.offWhite,fontFace:F,valign:"middle",wrap:true});
+      s7.addShape("rect", {x:0.35,y:5.72,w:9.3,h:0.68,fill:{color:C.dark},line:ln(C.teal)});
+      s7.addText(gc ? gc.partnershipClose : "", {x:0.5,y:5.72,w:9.0,h:0.68,fontSize:10.5,color:C.offWhite,fontFace:F,valign:"middle",wrap:true});
 
-      // SLIDE 8 — Thank You
+      // ── SLIDE 8: Thank You ────────────────────────────────────────────────
       const s8 = pptx.addSlide();
-      s8.background = { color:C.dark };
-      s8.addShape("rect", {x:0,y:0,w:10,h:0.06,fill:{color:C.teal}});
-      s8.addShape("rect", {x:0,y:0,w:10,h:3.9,fill:{color:C.navy}});
-      s8.addText("Thank You", {x:0.5,y:1.2,w:9.5,h:1.3,fontSize:54,bold:true,color:C.white,fontFace:F,align:"center"});
-      s8.addText("Avature Professional Services", {x:0.5,y:2.65,w:9.5,h:0.5,fontSize:16,color:C.teal,fontFace:F,align:"center",bold:true});
-      s8.addShape("rect", {x:0,y:3.9,w:10,h:3.6,fill:{color:C.dark}});
-      s8.addText(form.preparedBy||"Avature Professional Services", {x:0.5,y:4.55,w:9.5,h:0.5,fontSize:16,bold:true,color:C.white,fontFace:F,align:"center"});
-      s8.addText("avature.net", {x:0.5,y:5.2,w:9.5,h:0.4,fontSize:13,color:C.muted,fontFace:F,align:"center"});
-      s8.addText("CONFIDENTIAL", {x:0.5,y:6.5,w:9.5,h:0.3,fontSize:10,color:C.muted,fontFace:F,align:"center",charSpacing:2});
+      s8.background = { color: C.dark };
+      s8.addShape("rect", {x:0,y:0,w:10,h:0.07,fill:{color:C.teal},line:{type:"none"}});
+      s8.addShape("rect", {x:0,y:0,w:10,h:4.0,fill:{color:C.navy},line:{type:"none"}});
+      s8.addText("Thank You", {x:0.5,y:1.3,w:9,h:1.4,fontSize:52,bold:true,color:C.white,fontFace:F,align:"center"});
+      s8.addText("Avature Professional Services", {x:0.5,y:2.85,w:9,h:0.5,fontSize:16,bold:true,color:C.teal,fontFace:F,align:"center"});
+      s8.addShape("rect", {x:0,y:4.0,w:10,h:3.5,fill:{color:C.dark},line:{type:"none"}});
+      s8.addText(form.preparedBy || "Avature Professional Services", {x:0.5,y:4.7,w:9,h:0.5,fontSize:16,bold:true,color:C.white,fontFace:F,align:"center"});
+      s8.addText("avature.net", {x:0.5,y:5.35,w:9,h:0.4,fontSize:13,color:C.muted,fontFace:F,align:"center"});
 
-      await pptx.writeFile({ fileName:`Avature_Business_Case_${client.replace(/\s+/g,"_")}.pptx` });
-    } catch(e) { alert("Download failed: "+e.message); }
+      const safeClient = client.replace(/[^a-zA-Z0-9_-]/g,"_");
+      await pptx.writeFile({ fileName:"Avature_Business_Case_"+safeClient+".pptx" });
+    } catch(e) {
+      console.error("PPTX error:", e);
+      alert("Download failed: " + (e && e.message ? e.message : String(e)));
+    }
     finally { setDownloading(false); }
   };
 
