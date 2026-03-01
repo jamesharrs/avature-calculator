@@ -258,11 +258,12 @@ function downloadProposal(months, computed, phases, clientName, importantNotice,
 // Open in new tab + auto-trigger print dialog so user saves as PDF
 function printProposal(months, computed, phases, clientName, importantNotice, currSym) {
   const html = exportProposal(months, computed, phases, clientName, importantNotice, currSym);
+  const closeScript = ["</scr", "ipt>"].join("");
   const printHTML = html.replace("</body>", `<script>
     window.onload = function() {
       setTimeout(function() { window.print(); }, 600);
     };
-  </sc` + `ript></body>`);
+  ${closeScript}</body>`);
   const blob = new Blob([printHTML], { type:"text/html" });
   const url = URL.createObjectURL(blob);
   const newTab = window.open(url, "_blank");
@@ -415,29 +416,6 @@ function KpiCard({ label, value, sub, accent=false }) {
   );
 }
 
-function GanttBar({ phase, totalWeeks, animate }) {
-  const lp = ((phase.startWeek-1)/totalWeeks)*100;
-  const wp = (phase.duration/totalWeeks)*100;
-  const colW = (100/totalWeeks).toFixed(4);
-  const gridBg = `repeating-linear-gradient(90deg,#1F2937 0px,#1F2937 calc(${colW}% - 1px),#374151 calc(${colW}% - 1px),#374151 ${colW}%)`;
-  return (
-    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:9}}>
-      <div style={{width:260,fontSize:11,color:"#D1D5DB",textAlign:"right",flexShrink:0,lineHeight:1.3}}>{phase.name}</div>
-      <div style={{flex:1,height:26,borderRadius:6,position:"relative",overflow:"hidden",background:gridBg}}>
-        <div style={{
-          position:"absolute",left:`${lp}%`,width:animate?`${wp}%`:"0%",
-          top:3,bottom:3,background:`linear-gradient(90deg,${phase.color},${phase.color}CC)`,
-          borderRadius:4,transition:"width 0.6s cubic-bezier(0.4,0,0.2,1)",
-          display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",
-        }}>
-          <span style={{fontSize:10,color:"white",fontWeight:700,whiteSpace:"nowrap",padding:"0 6px"}}>{phase.duration}w</span>
-        </div>
-      </div>
-      <div style={{width:36,fontSize:11,color:"#6B7280"}}>W{phase.startWeek}</div>
-    </div>
-  );
-}
-
 // ─── DRAGGABLE GANTT BAR ──────────────────────────────────────────────────────
 function DraggableGanttBar({ phase, idx, totalWeeks, onResize, onMove }) {
   const [drag, setDrag] = useState(null);
@@ -485,7 +463,6 @@ function DraggableGanttBar({ phase, idx, totalWeeks, onResize, onMove }) {
   };
 
   // Smooth visual: shift position or width by live px during drag
-  const pxPerPct = 100 / totalWeeks; // rough — exact track width unknown here, use % offset via calc
   let visualLeft = `${baseLp}%`;
   let visualWidth = `${baseWp}%`;
   if (drag) {
@@ -757,7 +734,6 @@ export default function TMCalculator() {
   const [complexity, setComplexity] = useState(25);
   const [resources, setResources] = useState(DEFAULT_RESOURCES);
   const [activeTab, setActiveTab] = useState("summary");
-  const [ganttAnimate, setGanttAnimate] = useState(true);
   const [clientName, setClientName] = useState("");
   const [importantNotice, setImportantNotice] = useState(DEFAULT_NOTICE);
   const [currency, setCurrency] = useState("USD");
@@ -804,10 +780,8 @@ export default function TMCalculator() {
   const complexColor = complexity<=25?"#4ADE80":complexity<=50?"#FBBF24":complexity<=75?"#F97316":"#F87171";
 
   const handleMonthChange = m => {
-    setGanttAnimate(false);
     setMonths(m);
     setLayout(null);
-    setTimeout(() => setGanttAnimate(true), 50);
   };
 
   // Get current layout as array of {start, duration}
@@ -841,7 +815,7 @@ export default function TMCalculator() {
     setLayout(layout);
   };
 
-  const handleComplexChange = v => { setGanttAnimate(false); setComplexity(v); setTimeout(()=>setGanttAnimate(true),50); };
+  const handleComplexChange = v => { setComplexity(v); };
 
   const NAV = [
     {id:"summary",  label:"Summary"},
