@@ -56,6 +56,18 @@ const db = {
     method: "DELETE",
     prefer: "return=minimal",
   }),
+  createRequest: (data) => sbFetch("assessment_requests", {
+    method: "POST",
+    body: JSON.stringify(data),
+    prefer: "return=representation",
+  }),
+  getRequestByToken: (token) => sbFetch("assessment_requests?token=eq." + token + "&limit=1"),
+  completeRequest: (token, assessmentId) => sbFetch("assessment_requests?token=eq." + token, {
+    method: "PATCH",
+    body: JSON.stringify({ status: "completed", assessment_id: assessmentId, completed_at: new Date().toISOString() }),
+    prefer: "return=minimal",
+  }),
+  getRequests: () => sbFetch("assessment_requests?order=created_at.desc&limit=100"),
 };
 
 
@@ -384,7 +396,7 @@ const AI_INTEL_IDS = ["Q1","Q2","Q5","Q6","Q11","Q12","Q16","Q18","Q19","Q20","Q
 const AI_AUTO_IDS  = ["Q3","Q4","Q8","Q9","Q13","Q17","Q21","Q24"];
 const AI_GOV_IDS   = ["Q2","Q10","Q14","Q15","Q22","Q24","Q25"];
 
-function AIMaturityTool({ onBack, initialData, guestMode }) {
+function AIMaturityTool({ onBack, initialData, guestMode, guestToken }) {
   const [scores, setScores] = useState(initialData?.scores || {});
   const [view, setView] = useState("assessment");
   const [currentStage, setCurrentStage] = useState("ATTRACT");
@@ -405,13 +417,17 @@ function AIMaturityTool({ onBack, initialData, guestMode }) {
         stageScoresSnap[stage] = aiAvg(AI_QUESTIONS.slice(s,e+1).map(q => scores[q.id] ?? null));
       }
       const overallSnap = aiAvg(AI_QUESTIONS.map(q => scores[q.id] ?? null));
-      await db.saveAssessment({
+      const result = await db.saveAssessment({
         client_name: clientName || null,
         client_org: clientOrg || null,
         scores,
         overall_score: overallSnap !== null ? Math.round(overallSnap * 100) / 100 : null,
         stage_scores: stageScoresSnap,
       });
+      // Mark the request as completed and link to the saved assessment
+      if (guestToken && result && result[0]) {
+        await db.completeRequest(guestToken, result[0].id);
+      }
       setSubmitted(true);
     } catch(e) {
       alert("Submit failed: " + e.message);
@@ -470,13 +486,34 @@ function AIMaturityTool({ onBack, initialData, guestMode }) {
   const stageIdx = AI_STAGES.indexOf(currentStage);
   const stageDone = stageQs.filter(q => scores[q.id] !== undefined).length;
 
-  const handleShare = () => {
-    const scoreStr = AI_QUESTIONS.map(q => scores[q.id] !== undefined ? scores[q.id] : "").join(",");
-    const url = window.location.href.split("?")[0] + "?tool=ai-maturity&client=" + encodeURIComponent(clientName) + "&org=" + encodeURIComponent(clientOrg) + "&s=" + encodeURIComponent(scoreStr);
-    const subject = "Avature AI Maturity Self-Assessment" + (clientOrg ? " — " + clientOrg : "");
-    const body = "Hi" + (clientName ? " " + clientName : "") + ",\n\nPlease use the link below to complete your Avature AI Maturity Self-Assessment.\n\nThis assessment evaluates your organisation's AI readiness across six dimensions: Attract, Hire, Develop, Retain, Plan, and Measure.\n\nStart your assessment here:\n" + url + "\n\nIf you have any questions, please don't hesitate to reach out.\n\nBest regards,\nAvature Professional Services";
-    window.location.href = "mailto:" + encodeURIComponent(shareEmail) + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
-    setShowShareModal(false);
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState(null);
+
+  const handleShare = async () => {
+    if (!shareEmail) return;
+    setSharing(true);
+    setShareError(null);
+    try {
+      // Create a pending request row — Supabase generates the token UUID
+      const result = await db.createRequest({
+        client_name: clientName || null,
+        client_org: clientOrg || null,
+        sent_to: shareEmail,
+        status: "pending",
+      });
+      const token = result[0].token;
+      const baseUrl = window.location.href.split("?")[0];
+      const url = baseUrl + "?token=" + token;
+      const subject = "Avature AI Maturity Self-Assessment" + (clientOrg ? " — " + clientOrg : "");
+      const body = "Hi" + (clientName ? " " + clientName : "") + ",\n\nPlease use the link below to complete your Avature AI Maturity Self-Assessment.\n\nThis assessment evaluates your organisation's AI readiness across six dimensions: Attract, Hire, Develop, Retain, Plan, and Measure.\n\nStart your assessment here:\n" + url + "\n\nIf you have any questions, please don't hesitate to reach out.\n\nBest regards,\nAvature Professional Services";
+      window.location.href = "mailto:" + encodeURIComponent(shareEmail) + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+      setShowShareModal(false);
+      setShareEmail("");
+    } catch(e) {
+      setShareError("Failed to generate link: " + e.message);
+    } finally {
+      setSharing(false);
+    }
   };
 
   // Guest mode: thank you screen after submit
@@ -530,11 +567,12 @@ function AIMaturityTool({ onBack, initialData, guestMode }) {
               <input className="ai-share-input" type="email" value={shareEmail} onChange={e=>setShareEmail(e.target.value)} placeholder="client@company.com" style={{ width:"100%", background:"#1e293b", border:"1px solid #334155", borderRadius:8, color:"#f8fafc", padding:"10px 14px", fontSize:13, transition:"border-color 0.2s, box-shadow 0.2s" }}/>
             </div>
             <div style={{ display:"flex", gap:10 }}>
-              <button onClick={handleShare} disabled={!shareEmail} style={{ flex:1, background: shareEmail ? "linear-gradient(135deg,#6366f1,#4f46e5)" : "#1e293b", border:"none", borderRadius:8, color: shareEmail ? "white" : "#475569", padding:"11px", fontSize:13, fontWeight:600, cursor: shareEmail ? "pointer" : "not-allowed", transition:"all 0.2s" }}>
-                ✉ Open in Mail App
+              <button onClick={handleShare} disabled={!shareEmail || sharing} style={{ flex:1, background: shareEmail ? "linear-gradient(135deg,#6366f1,#4f46e5)" : "#1e293b", border:"none", borderRadius:8, color: shareEmail ? "white" : "#475569", padding:"11px", fontSize:13, fontWeight:600, cursor: shareEmail && !sharing ? "pointer" : "not-allowed", transition:"all 0.2s", opacity: sharing ? 0.7 : 1 }}>
+                {sharing ? "Generating link…" : "✉ Open in Mail App"}
               </button>
-              <button onClick={()=>setShowShareModal(false)} style={{ padding:"11px 20px", background:"transparent", border:"1px solid #334155", borderRadius:8, color:"#64748b", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
+              <button onClick={()=>{ setShowShareModal(false); setShareError(null); }} style={{ padding:"11px 20px", background:"transparent", border:"1px solid #334155", borderRadius:8, color:"#64748b", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
             </div>
+            {shareError && <p style={{ margin:"12px 0 0", fontSize:12, color:"#f87171" }}>⚠ {shareError}</p>}
           </div>
         </div>
       )}
@@ -822,24 +860,26 @@ function AIMaturityTool({ onBack, initialData, guestMode }) {
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment }) {
   const tools = [
-    { id:"calculator",  title:"Implementation Calculator",      description:"T&M scoping tool for Avature implementations. Configure phases, complexity, resources and export a professional proposal.", icon:"📊", status:"live",   color:"#1A6B7C" },
+    { id:"calculator",  title:"Implementation Estimator",      description:"T&M scoping tool for Avature implementations. Configure phases, complexity, resources and export a professional proposal.", icon:"📊", status:"live",   color:"#1A6B7C" },
     { id:"proposal",    title:"Business Proposal Generator",    description:"Generate comprehensive, branded business proposals tailored to client requirements and Avature solutions.",               icon:"📋", status:"coming", color:"#2E6DB4" },
     { id:"ai-maturity", title:"AI Maturity Self-Assessment",    description:"Evaluate your organisation's AI readiness across key dimensions and receive a tailored roadmap.",                        icon:"🧠", status:"live",   color:"#7C3AED" },
   ];
 
   const [plans, setPlans] = useState([]);
   const [assessments, setAssessments] = useState([]);
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dbError, setDbError] = useState(null);
   const [deleting, setDeleting] = useState(null);
-  const [activeTab, setActiveTab] = useState("plans");
+  const [activeTab, setActiveTab] = useState("requests");
 
   useEffect(() => {
     async function load() {
       try {
-        const [p, a] = await Promise.all([db.getImplementations(), db.getAssessments()]);
+        const [p, a, r] = await Promise.all([db.getImplementations(), db.getAssessments(), db.getRequests()]);
         setPlans(p || []);
         setAssessments(a || []);
+        setRequests(r || []);
       } catch(e) {
         setDbError("Could not load saved records — " + e.message);
       } finally {
@@ -901,7 +941,7 @@ function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment }) {
       <div style={{ background:"linear-gradient(180deg,#0D1B30 0%,#060D18 100%)", borderBottom:"1px solid #1F2937", padding:"0 40px" }}>
         <div style={{ maxWidth:1100, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"20px 0" }}>
           <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-            <img src={LOGO_URI} alt="Avature" style={{ height:24, filter:"brightness(0) invert(1)" }}/>
+            <img src={LOGO_URI} alt="Avature" style={{ height:28 }}/>
             <div style={{ width:1, height:20, background:"#1F2937" }}/>
             <span style={{ fontSize:14, color:"#6B7280", fontWeight:500 }}>Professional Services</span>
           </div>
@@ -954,7 +994,7 @@ function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment }) {
               {!loading && <span style={{ fontSize:12, color:"#4B5563", background:"#1F2937", borderRadius:20, padding:"2px 10px" }}>{totalRecords}</span>}
             </div>
             <div style={{ display:"flex", gap:4 }}>
-              {[["plans","📊 Plans", plans.length], ["assessments","🧠 Assessments", assessments.length]].map(([id, label, count]) => (
+              {[["requests","📨 Sent Requests", requests.length], ["plans","📊 Plans", plans.length], ["assessments","🧠 Assessments", assessments.length]].map(([id, label, count]) => (
                 <button key={id} className="dash-tab" onClick={() => setActiveTab(id)} style={{
                   background: activeTab === id ? "#1F2937" : "transparent",
                   border:"1px solid " + (activeTab === id ? "#374151" : "transparent"),
@@ -1043,6 +1083,41 @@ function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment }) {
                             {deleting === a.id ? "…" : "Delete"}
                           </button>
                         </div>
+                      </div>
+                    );
+                  })}
+                </div>
+          )}
+
+          {/* Sent Requests tab */}
+          {!loading && activeTab === "requests" && (
+            requests.length === 0
+              ? <div style={{ padding:"40px 24px", textAlign:"center", color:"#4B5563", fontSize:13 }}>No assessment requests sent yet. Use the ✉ Share button inside the AI Maturity tool to send one.</div>
+              : <div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 90px 100px 80px", gap:16, padding:"10px 24px", borderBottom:"1px solid #1F2937" }}>
+                    {["Client", "Organisation", "Sent To", "Status", "Sent", "Completed"].map((h,i) => (
+                      <span key={i} style={{ fontSize:10, fontWeight:600, color:"#4B5563", textTransform:"uppercase", letterSpacing:"0.08em" }}>{h}</span>
+                    ))}
+                  </div>
+                  {requests.map(r => {
+                    const isPending = r.status === "pending";
+                    return (
+                      <div key={r.id} className="rec-row" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 90px 100px 80px", gap:16, padding:"14px 24px", borderBottom:"1px solid #0D1117", alignItems:"center", transition:"background 0.15s" }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:"#F9FAFB" }}>{r.client_name || <span style={{ color:"#374151", fontStyle:"italic" }}>No name</span>}</div>
+                        <div style={{ fontSize:13, color:"#9CA3AF" }}>{r.client_org || "—"}</div>
+                        <div style={{ fontSize:12, color:"#6B7280", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{r.sent_to || "—"}</div>
+                        <div>
+                          <span style={{
+                            fontSize:10, fontWeight:700, borderRadius:20, padding:"3px 10px", letterSpacing:"0.06em",
+                            background: isPending ? "#78350f22" : "#14532D44",
+                            border: "1px solid " + (isPending ? "#d9770644" : "#166534"),
+                            color: isPending ? "#f59e0b" : "#4ADE80",
+                          }}>
+                            {isPending ? "PENDING" : "DONE"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize:11, color:"#4B5563" }}>{fmtDate(r.created_at)}</div>
+                        <div style={{ fontSize:11, color:"#4B5563" }}>{r.completed_at ? fmtDate(r.completed_at) : "—"}</div>
                       </div>
                     );
                   })}
@@ -1588,33 +1663,55 @@ export default function TMCalculator() {
   }, []);
 
   // ── Parse URL params on first load ──────────────────────────────────────────
-  const urlParams = useMemo(() => {
-    const p = new URLSearchParams(window.location.search);
-    return {
-      tool:   p.get("tool"),
-      client: p.get("client") || "",
-      org:    p.get("org") || "",
-      scores: p.get("s") || "",
-    };
-  }, []);
+  const urlToken = useMemo(() => new URLSearchParams(window.location.search).get("token"), []);
+  const [guestRequest, setGuestRequest] = useState(null);   // null = loading, false = invalid, object = valid
+  const [guestLoading, setGuestLoading] = useState(!!urlToken);
 
-  const isGuestAssessment = urlParams.tool === "ai-maturity";
+  useEffect(() => {
+    if (!urlToken) return;
+    db.getRequestByToken(urlToken).then(rows => {
+      if (rows && rows.length > 0) {
+        setGuestRequest(rows[0]);
+      } else {
+        setGuestRequest(false);
+      }
+    }).catch(() => setGuestRequest(false))
+      .finally(() => setGuestLoading(false));
+  }, [urlToken]);
 
-  // Guest mode — client arrived via email link, bypass login entirely
-  if (isGuestAssessment) {
-    const preloadedScores = {};
-    if (urlParams.scores) {
-      urlParams.scores.split(",").forEach((val, i) => {
-        if (val !== "" && AI_QUESTIONS[i]) preloadedScores[AI_QUESTIONS[i].id] = Number(val);
-      });
-    }
+  // Guest mode — token in URL, bypass login entirely
+  if (urlToken) {
+    if (guestLoading) return (
+      <div style={{ fontFamily:"'DM Sans','Segoe UI',sans-serif", background:"#0b1120", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", color:"#475569", fontSize:14 }}>
+        Loading assessment…
+      </div>
+    );
+    if (guestRequest === false) return (
+      <div style={{ fontFamily:"'DM Sans','Segoe UI',sans-serif", background:"#0b1120", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ textAlign:"center", maxWidth:400, padding:32 }}>
+          <div style={{ fontSize:40, marginBottom:16 }}>🔗</div>
+          <h2 style={{ color:"#f8fafc", fontSize:20, margin:"0 0 10px" }}>Link not found</h2>
+          <p style={{ color:"#475569", fontSize:14 }}>This assessment link is invalid or has expired. Please contact the person who sent it to you.</p>
+        </div>
+      </div>
+    );
+    if (guestRequest.status === "completed") return (
+      <div style={{ fontFamily:"'DM Sans','Segoe UI',sans-serif", background:"#0b1120", minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ textAlign:"center", maxWidth:400, padding:32 }}>
+          <div style={{ fontSize:40, marginBottom:16 }}>✅</div>
+          <h2 style={{ color:"#f8fafc", fontSize:20, margin:"0 0 10px" }}>Already submitted</h2>
+          <p style={{ color:"#475569", fontSize:14 }}>This assessment has already been completed. Thank you{guestRequest.client_name ? ", " + guestRequest.client_name : ""}!</p>
+        </div>
+      </div>
+    );
     return (
       <AIMaturityTool
         guestMode
+        guestToken={urlToken}
         initialData={{
-          client_name: urlParams.client,
-          client_org: urlParams.org,
-          scores: preloadedScores,
+          client_name: guestRequest.client_name || "",
+          client_org: guestRequest.client_org || "",
+          scores: {},
         }}
         onBack={null}
       />
@@ -1741,7 +1838,7 @@ export default function TMCalculator() {
                 Tools
               </button>
               <span style={{color:"#374151",fontSize:13}}>›</span>
-              <span style={{fontSize:13,color:"#6B7280"}}>Implementation Calculator</span>
+              <span style={{fontSize:13,color:"#6B7280"}}>Implementation Estimator</span>
               {loadedPlanId && (
                 <span style={{fontSize:10,fontWeight:600,color:"#1A6B7C",background:"#1A6B7C18",border:"1px solid #1A6B7C44",borderRadius:20,padding:"2px 10px",letterSpacing:"0.06em"}}>EDITING SAVED</span>
               )}
