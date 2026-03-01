@@ -1,6 +1,63 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 
 const LOGO_URI = "data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz48c3ZnIGlkPSJ1dWlkLTI3ZjVjY2VjLTEzYTctNGFiYS1hMDQyLTVmZDE3NDdlMzA2OCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgdmlld0JveD0iMCAwIDE2MiAzMiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLWNlZWE2ZTA4LWNiZDktNDE4Zi1iZjJiLWI0MzYyYTRiYTVmNSIgeDE9IjAiIHkxPSIxNiIgeDI9IjIzLjIxIiB5Mj0iMTYiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9IjAiIHN0b3AtY29sb3I9IiMwMDUzYmMiLz48c3RvcCBvZmZzZXQ9Ii41OSIgc3RvcC1jb2xvcj0iIzAwNTNiYyIvPjxzdG9wIG9mZnNldD0iLjY3IiBzdG9wLWNvbG9yPSIjMDA1NWMwIi8+PHN0b3Agb2Zmc2V0PSIuNzYiIHN0b3AtY29sb3I9IiMwMDVkY2MiLz48c3RvcCBvZmZzZXQ9Ii44NCIgc3RvcC1jb2xvcj0iIzAwNmFlMCIvPjxzdG9wIG9mZnNldD0iLjkzIiBzdG9wLWNvbG9yPSIjMDA3ZGZjIi8+PHN0b3Agb2Zmc2V0PSIuOTMiIHN0b3AtY29sb3I9IiMwMDdmZmYiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC04YTdkYTYyMi01NTYwLTRiNzUtOGFkMS1jNTYwYjdkODhkMDIiIHgxPSI4LjIzIiB5MT0iMjQuNjUiIHgyPSIzMC43NyIgeTI9IjI0LjY1IiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHN0b3Agb2Zmc2V0PSIuMDYiIHN0b3AtY29sb3I9IiMwMDUzYmMiLz48c3RvcCBvZmZzZXQ9Ii4xNSIgc3RvcC1jb2xvcj0iIzAwNjFkMiIvPjxzdG9wIG9mZnNldD0iLjI3IiBzdG9wLWNvbG9yPSIjMDA3MWViIi8+PHN0b3Agb2Zmc2V0PSIuMzgiIHN0b3AtY29sb3I9IiMwMDdiZjkiLz48c3RvcCBvZmZzZXQ9Ii40NyIgc3RvcC1jb2xvcj0iIzAwN2ZmZiIvPjwvbGluZWFyR3JhZGllbnQ+PGxpbmVhckdyYWRpZW50IGlkPSJ1dWlkLTA2ZTkyOTc5LTg0YmQtNDQwZi05YTdiLTlhMTFkMWQzOTY1NyIgeDE9IjguMjMiIHkxPSIyNC41NiIgeDI9IjMwLjc3IiB5Mj0iMjQuNTYiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9Ii4wNiIgc3RvcC1jb2xvcj0iIzAwNTNiYyIvPjxzdG9wIG9mZnNldD0iLjM5IiBzdG9wLWNvbG9yPSIjMDA3NWYwIi8+PHN0b3Agb2Zmc2V0PSIuNzEiIHN0b3AtY29sb3I9IiMwMDY0ZjciLz48c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwMDViZmMiLz48L2xpbmVhckdyYWRpZW50PjxsaW5lYXJHcmFkaWVudCBpZD0idXVpZC1iZDcwNDkyZS01ZTJlLTRjYjgtOGFkYy05YjMyZTUyZTI2ZjIiIHgxPSIyLjQ4IiB5MT0iMzIuODUiIHgyPSIxNy42NyIgeTI9IjIuMjYiIGdyYWRpZW50VW5pdHM9InVzZXJTcGFjZU9uVXNlIj48c3RvcCBvZmZzZXQ9Ii4yOSIgc3RvcC1jb2xvcj0iIzAwNWJjZSIvPjxzdG9wIG9mZnNldD0iLjY0IiBzdG9wLWNvbG9yPSIjMDA3ZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHBhdGggZD0iTTE1LjUzLjQ0TDAsMzEuNTZoMi43NWM1LjIxLDAsMTEuNDItMy44NywxNC4xLTkuMTFsNC44NS05LjdMMTUuNTMuNDRaIiBmaWxsPSJ1cmwoI3V1aWQtY2VlYTZlMDgtY2JkOS00MThmLWJmMmItYjQzNjJhNGJhNWY1KSIvPjxwYXRoIGQ9Ik0xOC4wMiwxOC4yMWMtMS4xNi0uMzQtMi4yOC0uNDctMy4zMy0uNDctMy42OCwwLTYuNDIsMS42Mi02LjQ2LDEuNjQsMi4yLjUzLDQuNjEsMS45Miw2LjkzLDQuODQsNy4zMSw5LjIsMTUuNjEsNy4xNCwxNS42MSw3LjE0LDAsMC0zLjEtMTAuNS0xMi43NS0xMy4xNVoiIGZpbGw9InVybCgjdXVpZC04YTdkYTYyMi01NTYwLTRiNzUtOGFkMS1jNTYwYjdkODhkMDIpIi8+PHBhdGggZD0iTTE4LjAyLDE4LjIxYy01LjI1LTEuNTMtOS43OCwxLjE3LTkuNzksMS4xOC4wMywwLC4wNi4wMi4wOS4wMiwxNC4xMi0yLjA5LDExLjE4LDkuMjQsMjIuNDUsMTEuOTYsMCwwLTMuMS0xMC41LTEyLjc1LTEzLjE1WiIgZmlsbD0idXJsKCN1dWlkLTA2ZTkyOTc5LTg0YmQtNDQwZi05YTdiLTlhMTFkMWQzOTY1NykiLz48cGF0aCBkPSJNMTguNjMsNi42M0wxNS41My40NCwwLDMxLjU2aDMuMDNTMTEuMTgsMTUuMjIsMTEuMTgsMTUuMjJjMi41My00Ljg4LDUuMDgtNy4xMiw3LjQ0LTguNTlaIiBmaWxsPSJ1cmwoI3V1aWQtYmQ3MDQ5MmUtNWUyZS00Y2I4LThhZGMtOWIzMmU1MmUyNmYyKSIvPjxwb2x5Z29uIHBvaW50cz0iNzAuNzUgMTAuMzkgNjQuNzkgMjIuMDggNTguOTUgMTAuMzkgNTQuNjQgMTAuMzkgNjIuNzkgMjUuOTggNjYuNzYgMjUuOTggNzQuOSAxMC4zOSA3MC43NSAxMC4zOSIgZmlsbD0iIzExMSIvPjxwYXRoIGQ9Ik0xMjUuMzksMTkuNjRjMCwuNzktLjE2LDEuNDMtLjQ3LDEuOS0uMy40NS0uODUuNzktMS42MywxLjAxLS44OC4yNS0yLjEyLjM4LTMuNy4zOC0xLjA3LDAtMS45NS0uMDYtMi42MS0uMTktLjU4LS4xMS0xLjAzLS4yOS0xLjMzLS41NS0uMjgtLjI0LS40OC0uNTktLjYtMS4wNy0uMTQtLjU1LS4yMS0xLjI4LS4yMS0yLjE2di04LjU4aC0zLjcydjguNThjMCwxLjc4LjI0LDMuMTYuNzQsNC4yMi41MywxLjEyLDEuNDIsMS45MiwyLjY1LDIuMzksMS4xNC40MywyLjcxLjY2LDQuNjQuNjYsMS40NiwwLDIuNjYtLjA4LDMuNTgtLjI1Ljk3LS4xOCwxLjc0LS40NCwyLjM0LS44MS4xLS4wNi4yLS4xMy4zLS4ydi45OWgzLjcxdi0xNS41OGgtMy43MXY5LjI1WiIgZmlsbD0iIzExMSIvPjxwYXRoIGQ9Ik0xMzkuMDksMTAuMjljLS44MS4wOC0xLjQ0LjIxLTEuOTQuMzloMGMtLjM2LjE0LS42Ny4zMS0uOTUuNTJ2LS44MWgtMy43MXYxNS41OGgzLjcxdi05LjM4YzAtLjcxLjA0LTEuMy4xMS0xLjc1LjA1LS4zMS4xOS0uNTQuNDQtLjcxLjItLjE0LjY1LS4zNCwxLjYyLS40Ny44Ni0uMTEsMi4xMS0uMTcsMy43MS0uMTdoLjY3di0zLjMyaC0uNjdjLTEuMjMsMC0yLjIzLjA0LTMsLjExWiIgZmlsbD0iIzExMSIvPjxwYXRoIGQ9Ik05MC44MSwxMS44aDBjLS42Mi0uNjUtMS41Mi0xLjExLTIuNjctMS4zNS0xLjA2LS4yMi0yLjQ2LS4zNC00LjE2LS4zNGgtNy4xOXYzLjMxaDcuMTljMS4xMywwLDIuMDMuMDQsMi42OS4xMy41Ni4wNy45OC4yMiwxLjI0LjQ0LjI0LjIxLjQyLjU1LjUyLDEuMDMuMDkuNDMuMTUuOTguMTgsMS42NS0uNTktLjA5LTEuMjItLjE2LTEuOS0uMjEtLjc3LS4wNS0xLjY5LS4wOC0yLjczLS4wOS0uMzEsMC0uNjMsMC0uOTYsMC0xLjgyLDAtMy4zMS4wOS00LjQ1LjI4LTEuMjYuMjEtMi4yMS42OC0yLjgxLDEuNDEtLjYyLjc0LS45MiwxLjgxLS45MiwzLjI4cy4zMywyLjUzLjk4LDMuMjVjLjY0LjcyLDEuNjEsMS4xOCwyLjg3LDEuMzgsMS4xNC4xOCwyLjYuMjcsNC4zMy4yNy4zNCwwLC42NiwwLC45NywwLC44OC0uMDIsMS42NC0uMDYsMi4yNS0uMTIuODgtLjA5LDEuNTgtLjI0LDIuMTMtLjQ0LjA5LS4wMy4xOC0uMDcuMjctLjExdi40MWgzLjcxdi03LjUyYzAtMS42MS0uMS0yLjk1LS4yOS0zLjk4LS4yMS0xLjEyLS42My0yLjAyLTEuMjUtMi42N1pNODguNjQsMjEuMjNjMCwuNjMtLjA4Ljk3LS4xNSwxLjE0LS4wNC4wOS0uMTIuMjMtLjQzLjM0LS4yNC4wOS0uNzMuMi0xLjY5LjIzLS42Mi4wMi0xLjQzLjA0LTIuNC4wNS0uMywwLS42MiwwLS45NSwwLTEuMDksMC0xLjk4LS4wMi0yLjY1LS4wNi0uNzUtLjA1LTEuMTQtLjE1LTEuMzQtLjIzLS4yNC0uMS0uMzEtLjIyLS4zNS0uMzItLjA2LS4xNi0uMTQtLjQ3LS4xNC0xLjA0cy4wOC0uOTIuMTQtMS4wOWMuMDQtLjEuMTEtLjIzLjM1LS4zNC4xOS0uMDguNTgtLjE5LDEuMzMtLjI0LjQ4LS4wMywxLjA5LS4wNSwxLjgxLS4wNS4yNiwwLC41NCwwLC44MywwbDUuNjMuMDd2MS41M1oiIGZpbGw9IiMxMTEiLz48cGF0aCBkPSJNNTIuNTQsMTEuOGMtLjYyLS42NS0xLjUyLTEuMTEtMi42Ny0xLjM1LTEuMDYtLjIyLTIuNDYtLjM0LTQuMTYtLjM0aC03LjE5djMuMzFoNy4xOWMxLjEzLDAsMi4wMy4wNCwyLjY5LjEzLjU2LjA3Ljk4LjIyLDEuMjQuNDQuMjQuMjEuNDIuNTUuNTIsMS4wMy4wOS40My4xNS45OC4xOCwxLjY1LS41OS0uMDktMS4yMi0uMTYtMS45LS4yMS0uNzctLjA1LTEuNjktLjA4LTIuNzMtLjA5LS4zMSwwLS42MywwLS45NiwwLTEuODIsMC0zLjMxLjA5LTQuNDUuMjgtMS4yNi4yMS0yLjIxLjY4LTIuODEsMS40MS0uNjIuNzQtLjkyLDEuODEtLjkyLDMuMjhzLjMzLDIuNTMuOTgsMy4yNWMuNjQuNzIsMS42MSwxLjE4LDIuODcsMS4zOCwxLjE0LjE4LDIuNi4yNyw0LjMzLjI3LjM0LDAsLjY2LDAsLjk3LDAsLjg4LS4wMiwxLjY0LS4wNiwyLjI1LS4xMi44OC0uMDksMS41OC0uMjQsMi4xMy0uNDQuMDktLjAzLjE4LS4wNy4yNy0uMTF2LjQxaDMuNzF2LTcuNTJjMC0xLjYxLS4xLTIuOTUtLjI5LTMuOTgtLjIxLTEuMTItLjYzLTIuMDItMS4yNS0yLjY3Wk01MC4zNywyMS4yM2MwLC42My0uMDguOTctLjE1LDEuMTQtLjA0LjA5LS4xMi4yMy0uNDMuMzQtLjI0LjA5LS43My4yLTEuNjkuMjMtLjYyLjAyLTEuNDMuMDQtMi40LjA1LS4zLDAtLjYyLDAtLjk1LDAtMS4wOSwwLTEuOTgtLjAyLTIuNjUtLjA2LS43NS0uMDUtMS4xNC0uMTUtMS4zNC0uMjMtLjI0LS4xLS4zMS0uMjItLjM1LS4zMi0uMDYtLjE2LS4xNC0uNDctLjE0LTEuMDRzLjA4LS45Mi4xNC0xLjA5Yy4wNC0uMS4xMS0uMjMuMzUtLjM0LjE5LS4wOC41OC0uMTksMS4zMy0uMjQuNDgtLjAzLDEuMDktLjA1LDEuODEtLjA1LjI2LDAsLjU0LDAsLjgzLDBsNS42My4wN3YxLjUzWiIgZmlsbD0iIzExMSIvPjxwYXRoIGQ9Ik0xNTguMTIsMjAuMDRjMCwuMTIuMTMsMi43Mi0zLjA0LDIuNzJzLTYuMjUuNTQtNy0xLjYybDEwLjMzLTMuOTQsMi45OC0xLjE0LjYtLjIzYy0uMDItLjQ0LS4wNy0uODYtLjE4LTEuMjgtLjE3LS42Ny0uNDYtMS4zMS0uODUtMS44OC0uODMtMS4yMi0yLjEtMi4xNS0zLjY1LTIuNTMtLjk1LS4yMi0xLjA3LS4xNy02Ljk4LS4xNy0zLjM1LDAtNi4wOCwyLjczLTYuMDgsNi4wOHYzLjk3YzAsMy4zNSwyLjczLDYuMDgsNi4wOCw2LjA4LDUuOTEsMCw2LjAzLjA2LDYuOTgtLjE3LDIuNzktLjY3LDQuNjgtMy4xNCw0LjY4LTUuOTFoLTMuODhaTTE0Ny45MSwxNi4wNmMwLTMuNDMsMy42NS0yLjcyLDcuMTYtMi43MiwxLjEsMCwxLjc5LjMxLDIuMjQuNzNsLTkuNDQsMy42Yy4wMS0uNTIuMDMtMS4wNi4wMy0xLjYxWiIgZmlsbD0iIzExMSIvPjxwYXRoIGQ9Ik0xMDEuNDcsMjIuNTJjLS40MS0uNC0uMy0uNTktLjMtOC42di0uMjRoNi40OHYtMy4yOWgtNi41di00LjY0aC0zLjcxdjQuNjNoLTIuNzR2My4zMWgyLjc1di4yM3MuMDEsNy41Mi4wMSw3LjUyYzAsMy4wNiwyLjE2LDQuNjQsNC40LDQuODJoNS45OHYtMy40NmMtNS45LDAtNS45OS4xLTYuMzktLjI4WiIgZmlsbD0iIzExMSIvPjwvc3ZnPg==";
+
+// ─── SUPABASE CLIENT ──────────────────────────────────────────────────────────
+const SUPABASE_URL = "https://dtjyejkbwqvktkdserci.supabase.co";
+const SUPABASE_KEY = "sb_publishable_k_nSyamataNU50XZCdc8Xw_RZ0aAI1f";
+
+async function sbFetch(path, options = {}) {
+  const res = await fetch(SUPABASE_URL + "/rest/v1/" + path, {
+    ...options,
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + SUPABASE_KEY,
+      "Content-Type": "application/json",
+      "Prefer": options.prefer || "return=representation",
+      ...(options.headers || {}),
+    },
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+const db = {
+  saveImplementation: (data) => sbFetch("implementation_plans", {
+    method: "POST",
+    body: JSON.stringify(data),
+    prefer: "return=representation",
+  }),
+  getImplementations: () => sbFetch("implementation_plans?order=created_at.desc&limit=50"),
+  updateImplementation: (id, data) => sbFetch("implementation_plans?id=eq." + id, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    prefer: "return=representation",
+  }),
+  deleteImplementation: (id) => sbFetch("implementation_plans?id=eq." + id, {
+    method: "DELETE",
+    prefer: "return=minimal",
+  }),
+  saveAssessment: (data) => sbFetch("maturity_assessments", {
+    method: "POST",
+    body: JSON.stringify(data),
+    prefer: "return=representation",
+  }),
+  getAssessments: () => sbFetch("maturity_assessments?order=created_at.desc&limit=50"),
+  updateAssessment: (id, data) => sbFetch("maturity_assessments?id=eq." + id, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    prefer: "return=representation",
+  }),
+  deleteAssessment: (id) => sbFetch("maturity_assessments?id=eq." + id, {
+    method: "DELETE",
+    prefer: "return=minimal",
+  }),
+};
+
 
 // ─── DATA ─────────────────────────────────────────────────────────────────────
 const PHASES = [
@@ -279,42 +336,490 @@ function printProposal(months, computed, phases, clientName, importantNotice, cu
   setTimeout(() => URL.revokeObjectURL(url), 15000);
 }
 
-// ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ onSelectTool, onSignOut }) {
-  const tools = [
-    {
-      id: "calculator",
-      title: "Implementation Calculator",
-      description: "T&M scoping tool for Avature implementations. Configure phases, complexity, resources and export a professional proposal.",
-      icon: "📊",
-      status: "live",
-      color: "#1A6B7C",
-    },
-    {
-      id: "proposal",
-      title: "Business Proposal Generator",
-      description: "Generate comprehensive, branded business proposals tailored to client requirements and Avature solutions.",
-      icon: "📋",
-      status: "coming",
-      color: "#2E6DB4",
-    },
-    {
-      id: "ai-maturity",
-      title: "AI Maturity Self-Assessment",
-      description: "Evaluate your organisation's AI readiness across key dimensions and receive a tailored roadmap.",
-      icon: "🧠",
-      status: "coming",
-      color: "#7C3AED",
-    },
-  ];
+// ─── AI MATURITY TOOL ─────────────────────────────────────────────────────────
+const AI_QUESTIONS = [
+  { id:"Q1",  stage:"ATTRACT", category:"AI Content Generation",   question:"Are job descriptions, career site content, and candidate communications created or enhanced using AI tools?", roi:"Efficiency", scores:["All content manually written with no standardisation or reuse. No AI assistance available or considered.","Team has discussed using AI or templates, but no tools are active. Some recruiters experiment informally.","Copilot or AI tools used for drafts by some recruiters in limited regions. Adoption inconsistent.","Most job ads and communications generated with Copilot; consistently reviewed with brand guidelines. Usage tracked.","Job ads created with skills-tagging, tone controls, brand compliance, translation, and full Copilot automation."] },
+  { id:"Q2",  stage:"ATTRACT", category:"Skills & Taxonomy",        question:"Are job ads enriched with structured skills data and connected to a central taxonomy?", roi:"Strategic", scores:["Job ads do not contain structured or inferred skills. No job/role taxonomy exists.","Some jobs manually tagged with skills; no inference, consistency, or connection to broader architecture.","Skills pulled from HRIS or copy-pasted into job templates. Job architecture exists but not connected to TA processes.","Jobs enriched with validated skills from enterprise taxonomy. Roles mapped to taxonomy in CRM/ATS and synced to job ads.","Skills inferred from role context and used in search optimisation. Ontology maintained centrally across HRIS, CRM, and planning."] },
+  { id:"Q3",  stage:"ATTRACT", category:"Campaign Orchestration",   question:"Are sourcing campaigns, candidate nurturing, and event follow-ups automated and segmented by role/skills/behaviour?", roi:"Efficiency", scores:["No email or nurture campaigns in use. All outreach manual and ad hoc.","Manual email sends by recruiters to limited talent pools. Basic lists in spreadsheets.","Drip campaigns created by CRM leads for priority roles. Basic segmentation by job family. Time-based but not behaviour-based.","Campaigns triggered by candidate activity or time-lapse rules. Dynamic content blocks with analytics.","Campaigns AI-curated and optimised by engagement behaviour. Content adapts to interactions. AI dynamically reweights channels."] },
+  { id:"Q4",  stage:"ATTRACT", category:"Proactive Sourcing",       question:"Are passive candidates pre-pipelined before requisitions open using job family logic and AI recommendations?", roi:"Strategic", scores:["Pipelining only after job posted. No proactive sourcing. Recruiters start from scratch with each new requisition.","Ad hoc pre-req sourcing in one or two high-volume areas. Not systematic.","Evergreen requisitions or placeholder pools exist for common roles. Pools manually maintained and not refreshed regularly.","Pools tied to job families. Recruiters pre-source for priority roles using CRM workflows.","AI suggests and ranks candidates for pre-reqs based on forecast and readiness. Copilot recommends leads before requisition approval."] },
+  { id:"Q5",  stage:"ATTRACT", category:"Performance Optimisation", question:"Is engagement data used to refine content, optimise channels, and improve candidate journeys?", roi:"Experience", scores:["No tracking or visibility into job ad, campaign, or career site performance. No analytics exist.","Some UTM tracking or anecdotal feedback. Basic source-of-apply data exists but not analysed.","Basic source-of-apply tracking in one region or job board. Data reviewed quarterly but not used to drive changes.","Ad performance metrics visible in CRM or career site dashboard. Insights used to A/B test content and channels.","AI suggests real-time optimisations based on audience and performance. AI personalises full site experience."] },
+  { id:"Q6",  stage:"HIRE",    category:"AI Matching",              question:"Are candidates ranked using skills-based AI matching with explainable scoring visible to recruiters?", roi:"Efficiency", scores:["Recruiters manually search and rank candidates without AI. All evaluation based on keyword search and personal judgement.","Matching engine enabled but not trusted or actively used. Scoring logic unclear. Recruiters prefer manual review.","AI matching used to rank candidates in limited requisitions without scoring explanation.","AI matching with scoring used and visible to most recruiters. Explainability dashboard adopted.","Explainability, scoring, and match logic embedded and trusted org-wide. Match quality improves over time through feedback."] },
+  { id:"Q7",  stage:"HIRE",    category:"Talent Discovery",         question:"Do recruiters use semantic search, AI-suggested synonyms, and automated rediscovery of past candidates?", roi:"Efficiency", scores:["Recruiters search using keywords and Boolean only. Past applicants not revisited. No synonym expansion.","Some search expansions using synonym libraries or filters. No AI assistance in broadening terms.","Copilot or AI assists with simple term rewrites. Silver medallists tagged manually in some reqs.","Recruiters use Copilot or semantic search to broaden pipelines. Rediscovery automations resurface candidates for similar roles.","AI proactively suggests pipeline leads based on inferred fit. AI continuously mines pools for role fit and mobility."] },
+  { id:"Q8",  stage:"HIRE",    category:"Screening Automation",     question:"Are screening workflows, shortlisting, and candidate routing automated with triggers and AI summaries?", roi:"Efficiency", scores:["Recruiters manually screen all resumes with no automation. Every application requires manual review.","Rules or tags used to filter applications in bulk. Basic pass/fail criteria.","Workflows route candidates based on survey or form inputs. Some conditional logic.","AI-generated summaries or scores used to prioritise reviews. Automated routing sends qualified candidates to hiring managers.","Copilot and workflows automate initial review and routing. Screening logic adapts based on performance and feedback."] },
+  { id:"Q9",  stage:"HIRE",    category:"Scheduling Automation",    question:"Are interviews coordinated through self-scheduling, conflict-aware automation, or AI-powered tools?", roi:"Efficiency", scores:["Recruiters manually coordinate all interviews via email. Significant coordination time required.","Calendars shared, but scheduling still email-based. Recruiters can see availability but manually propose times.","Basic time slot tools used for select roles. Candidates pick from available times.","Candidate self-scheduling enabled via integrated workflows. Conflict detection for panel interviews.","Conflict-aware automation routes to best-fit slots. AI considers time zones, preferences, panel availability."] },
+  { id:"Q10", stage:"HIRE",    category:"Bias & Feedback Quality",  question:"Are AI decisions logged, monitored for bias, and supported by structured hiring manager feedback loops?", roi:"Strategic", scores:["No logging or monitoring of AI-assisted decisions. No structured feedback from hiring managers.","Some manual review of AI decisions post-hire. Feedback collected informally.","AI decisions logged in system. Periodic review by TA ops or compliance team.","Bias monitoring dashboards in use. Structured feedback loops from hiring managers feed scoring adjustments.","Full audit trail of AI decisions. Bias metrics reviewed quarterly. Feedback loops continuously improve AI model accuracy."] },
+  { id:"Q11", stage:"DEVELOP", category:"Skills Gap Analysis",      question:"Are skill gaps visible at individual/team level and connected to development plans?", roi:"Strategic", scores:["No visibility into skill gaps. Development planning done ad hoc without data.","Skill gaps identified manually during performance reviews. No connection to development plans.","Skills assessments exist in some business units. Gap data not connected to learning recommendations.","Skills gaps visible in talent profiles. Managers can see team-level gaps. Connected to development plan workflows.","AI-generated gap analysis surfaced proactively. Skills forecasts drive development planning. Connected to internal mobility and succession."] },
+  { id:"Q12", stage:"DEVELOP", category:"Development Insights",     question:"Are AI-generated insights available to managers and employees to guide development priorities?", roi:"Experience", scores:["No AI-driven development insights. Managers rely on instinct or HR guidance.","Generic development prompts available but not personalised to role or skills profile.","Learning recommendations exist in LMS but not connected to skills data or career paths.","AI-generated insights surfaced to managers at review cycles. Employees see recommended skills to develop.","Real-time AI nudges guide employees and managers. Insights connected to role market trends, internal mobility, and succession data."] },
+  { id:"Q13", stage:"DEVELOP", category:"Learning Automation",      question:"Are learning nudges, enablement content, and skill-building pathways automated and personalised?", roi:"Efficiency", scores:["Learning is self-directed with no automation or personalisation.","Some role-based learning paths exist. Manually curated by L&D team.","Learning paths connected to job profile. Completion tracked but nudges are manual.","Automated nudges triggered by skills gaps or role changes. Content recommended based on profile.","AI personalises learning pathways dynamically. Nudges adapt based on engagement, progress, and business priorities."] },
+  { id:"Q14", stage:"DEVELOP", category:"Ontology Stewardship",     question:"Is the enterprise skills taxonomy actively managed with designated ownership and a refresh cadence?", roi:"Governance", scores:["No formal skills taxonomy in use. Skills data fragmented across systems.","Taxonomy exists but ownership is unclear. Last updated over a year ago.","Taxonomy maintained by HR ops. Annual refresh. Not connected to TA or L&D workflows.","Taxonomy owned by defined team. Quarterly review. Connected to job architecture and learning content.","Taxonomy governed by cross-functional team. Continuous improvement cycle. Integrated across HRIS, CRM, ATS, and LMS."] },
+  { id:"Q15", stage:"DEVELOP", category:"Proficiency Management",   question:"Are skill proficiencies rated, validated by managers, and used in talent decisions?", roi:"Strategic", scores:["No proficiency ratings in use. Skills treated as binary present/absent.","Proficiency levels exist in system but self-assessed only. Rarely used in talent decisions.","Manager validation of proficiencies available but inconsistently used.","Proficiency ratings validated by managers and used in succession and mobility decisions.","AI infers proficiency from activity signals. Validated ratings feed AI matching, succession planning, and external hiring decisions."] },
+  { id:"Q16", stage:"RETAIN",  category:"Internal Matching",        question:"Are employees matched to internal opportunities using AI and skills-based logic?", roi:"Strategic", scores:["No internal opportunity matching. Employees find roles through word of mouth or manual search.","Internal job board exists but no AI matching. Employees search manually.","Basic matching by job family or department. Not skills-based.","AI matching surfaces relevant internal roles to employees based on profile and skills.","AI proactively recommends internal moves before employees search. Matches include lateral, stretch, and project opportunities."] },
+  { id:"Q17", stage:"RETAIN",  category:"Mobility Automation",      question:"Are mobility campaigns automated and internal transitions supported by structured workflows?", roi:"Efficiency", scores:["Internal moves handled ad hoc. No campaigns or workflows to support transitions.","Some internal hiring processes documented but not automated.","Internal move workflows exist for select role types. No automated campaigns.","Mobility campaigns automated. Employees notified of relevant opportunities based on profile triggers.","End-to-end mobility journeys automated from interest to onboarding. AI optimises campaign timing and targeting."] },
+  { id:"Q18", stage:"RETAIN",  category:"Mobility Intelligence",    question:"Are mobility patterns tracked across dimensions (dept, level, DEI) and used to inform retention strategy?", roi:"Strategic", scores:["No mobility data tracked. Retention strategy based on exit interviews and anecdote.","Basic headcount movement tracked in HRIS. Not analysed for patterns.","Mobility data available in reports. Reviewed periodically by HR leadership.","Mobility trends analysed by department, level, and demographics. Insights inform retention planning.","Predictive models flag flight risk and mobility readiness. AI links mobility patterns to engagement and performance outcomes."] },
+  { id:"Q19", stage:"RETAIN",  category:"Opportunity Ecosystem",    question:"Can employees access an opportunity marketplace with mentoring, projects, and stretch assignments?", roi:"Experience", scores:["No opportunity marketplace. Employees have limited visibility of development or stretch options.","Ad hoc mentoring and project work. No central platform.","Internal project board or mentoring programme exists but participation is low.","Opportunity marketplace live with projects, mentoring, and stretch assignments. Employee uptake tracked.","AI-powered marketplace personalises opportunities to employee profile, aspirations, and skills gaps."] },
+  { id:"Q20", stage:"PLAN",    category:"Workforce Forecasting",    question:"Are predictive tools used to forecast role and skill demand, linked to business planning cycles?", roi:"Strategic", scores:["Workforce planning based on headcount targets only. No predictive capability.","Basic demand forecasting done in spreadsheets. Disconnected from business planning.","Forecasting tool in use but data quality inconsistent. Limited stakeholder trust.","Predictive demand models connected to business planning cycle. Scenarios modelled by HR and finance.","AI forecasts demand by role, skill, location, and business unit. Connected to financial planning and real-time workforce data."] },
+  { id:"Q21", stage:"PLAN",    category:"Scenario Planning",        question:"Can leaders model organisational change impacts using unified workforce data?", roi:"Strategic", scores:["No scenario planning capability. Leaders rely on static headcount data.","Scenario modelling done in spreadsheets. No integration with live workforce data.","Basic what-if modelling available in planning tool. Limited to headcount changes.","Leaders can model restructures, growth scenarios, and skill redeployment using integrated workforce data.","AI generates recommended scenarios based on market signals and internal data. Modelling includes cost, skills, and DEI impact."] },
+  { id:"Q22", stage:"PLAN",    category:"Planning Governance",      question:"Is there cross-functional governance reviewing KPIs, with planning connected to TA and L&D execution?", roi:"Governance", scores:["No governance structure for workforce planning. HR plans in isolation.","Occasional planning reviews with HR leadership. KPIs not formalised.","Quarterly workforce planning reviews with HR. Loosely connected to TA hiring plans.","Cross-functional governance with HR, Finance, and business leaders. KPIs tracked. Connected to TA pipeline and L&D programmes.","Executive-sponsored governance with quarterly board-level reporting. Planning outcomes drive TA, L&D, and total rewards decisions."] },
+  { id:"Q23", stage:"MEASURE", category:"Unified Analytics",        question:"Are CRM, ATS, and HRIS data unified with predictive analytics accessible to TA and HR leaders?", roi:"Strategic", scores:["Data sits in separate systems. No unified view. Leaders rely on manual exports.","Basic reporting available in each system. Some manual consolidation by HR ops.","Cross-system dashboards exist but data quality issues undermine trust.","Unified analytics platform used by TA and HR leaders. Key metrics tracked across the talent lifecycle.","AI-powered analytics surface predictive insights. Leaders receive proactive alerts and trend analysis across all talent data."] },
+  { id:"Q24", stage:"MEASURE", category:"Data & Compliance",        question:"Are data accuracy, duplication, and compliance rules (opt-in, GDPR, data decay) actively managed?", roi:"Governance", scores:["No data governance policy in place. Compliance managed reactively.","Basic GDPR processes in place. Data quality managed manually by HR ops.","Data hygiene rules configured in system. Duplication and opt-in managed with some automation.","Data governance policy active. Automated compliance workflows. Regular audits with documented outcomes.","Proactive data governance with AI-flagged anomalies. Full audit trails. GDPR and regional compliance automated end-to-end."] },
+  { id:"Q25", stage:"MEASURE", category:"ROI & Ethics",             question:"Are ROI metrics reviewed quarterly, governance/ethics policies maintained, and outcomes shared with leadership?", roi:"Governance", scores:["No ROI measurement. Ethics policies not documented.","ROI tracked informally. Ethics guidelines exist but not actively enforced.","Quarterly ROI review by HR leadership. Ethics policy documented.","ROI metrics shared with business leadership. Ethics governance reviewed semi-annually. Linked to AI tool procurement.","Exec-level ROI reporting. Ethics board or committee reviewing AI use. Outcomes published internally. Continuous improvement cycle."] },
+];
+
+const AI_STAGES = ["ATTRACT","HIRE","DEVELOP","RETAIN","PLAN","MEASURE"];
+const AI_STAGE_RANGES = { ATTRACT:[0,4], HIRE:[5,9], DEVELOP:[10,14], RETAIN:[15,18], PLAN:[19,21], MEASURE:[22,24] };
+const AI_ROI_COLOR = { Efficiency:"#3b82f6", Strategic:"#8b5cf6", Experience:"#10b981", Governance:"#f59e0b" };
+const AI_SCORE_LABELS = ["Pre-Activation","Foundational","Emerging","Developing","Advanced"];
+const AI_SCORE_COLORS = ["#ef4444","#f97316","#eab308","#22c55e","#6366f1"];
+
+function aiGetMaturity(score) {
+  if (score === null || score === undefined) return { label:"—", color:"#475569" };
+  return { label: AI_SCORE_LABELS[Math.min(Math.floor(score), 4)], color: AI_SCORE_COLORS[Math.min(Math.floor(score), 4)] };
+}
+function aiAvg(arr) {
+  const valid = arr.filter(v => v !== null && v !== undefined);
+  return valid.length ? valid.reduce((a,b)=>a+b,0)/valid.length : null;
+}
+
+function AIMaturityTool({ onBack, initialData }) {
+  const [scores, setScores] = useState(initialData?.scores || {});
+  const [view, setView] = useState("assessment");
+  const [currentStage, setCurrentStage] = useState("ATTRACT");
+  const [clientName, setClientName] = useState(initialData?.client_name || "");
+  const [clientOrg, setClientOrg] = useState(initialData?.client_org || "");
+  const [shareEmail, setShareEmail] = useState("");
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [savedToast, setSavedToast] = useState(null);
+  const [loadedId, setLoadedId] = useState(initialData?.id || null);
+
+  const handleSaveAssessment = async () => {
+    setSaving(true);
+    try {
+      const stageScoresSnap = {};
+      for (const [stage, [s,e]] of Object.entries(AI_STAGE_RANGES)) {
+        stageScoresSnap[stage] = aiAvg(AI_QUESTIONS.slice(s,e+1).map(q => scores[q.id] ?? null));
+      }
+      const overallSnap = aiAvg(AI_QUESTIONS.map(q => scores[q.id] ?? null));
+      const payload = {
+        client_name: clientName || null,
+        client_org: clientOrg || null,
+        scores,
+        overall_score: overallSnap !== null ? Math.round(overallSnap * 100) / 100 : null,
+        stage_scores: stageScoresSnap,
+      };
+      if (loadedId) {
+        await db.updateAssessment(loadedId, payload);
+      } else {
+        const result = await db.saveAssessment(payload);
+        if (result && result[0]) setLoadedId(result[0].id);
+      }
+      setSavedToast("Assessment saved ✓");
+      setTimeout(() => setSavedToast(null), 3000);
+    } catch(e) {
+      alert("Save failed: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const answered = Object.keys(scores).length;
+  const total = AI_QUESTIONS.length;
+
+  const stageScores = useMemo(() => {
+    const out = {};
+    for (const [stage, [s,e]] of Object.entries(AI_STAGE_RANGES)) {
+      out[stage] = aiAvg(AI_QUESTIONS.slice(s,e+1).map(q => scores[q.id] ?? null));
+    }
+    return out;
+  }, [scores]);
+
+  const overall = useMemo(() => aiAvg(AI_QUESTIONS.map(q => scores[q.id] ?? null)), [scores]);
+  const intelIds = ["Q1","Q2","Q5","Q6","Q11","Q12","Q16","Q18","Q19","Q20","Q23"];
+  const autoIds  = ["Q3","Q4","Q8","Q9","Q13","Q17","Q21","Q24"];
+  const govIds   = ["Q2","Q10","Q14","Q15","Q22","Q24","Q25"];
+  const intelScore = useMemo(() => aiAvg(intelIds.map(id => scores[id] ?? null)), [scores]);
+  const autoScore  = useMemo(() => aiAvg(autoIds.map(id => scores[id] ?? null)), [scores]);
+  const govScore   = useMemo(() => aiAvg(govIds.map(id => scores[id] ?? null)), [scores]);
+
+  const stageQs = AI_QUESTIONS.filter(q => q.stage === currentStage);
+  const stageIdx = AI_STAGES.indexOf(currentStage);
+  const stageDone = stageQs.filter(q => scores[q.id] !== undefined).length;
+
+  const handleShare = () => {
+    const scoreStr = AI_QUESTIONS.map(q => scores[q.id] !== undefined ? scores[q.id] : "").join(",");
+    const url = window.location.href.split("?")[0] + "?tool=ai-maturity&client=" + encodeURIComponent(clientName) + "&org=" + encodeURIComponent(clientOrg) + "&s=" + encodeURIComponent(scoreStr);
+    const subject = "Avature AI Maturity Self-Assessment" + (clientOrg ? " — " + clientOrg : "");
+    const body = "Hi" + (clientName ? " " + clientName : "") + ",\n\nPlease use the link below to complete your Avature AI Maturity Self-Assessment.\n\nThis assessment evaluates your organisation's AI readiness across six dimensions: Attract, Hire, Develop, Retain, Plan, and Measure.\n\nStart your assessment here:\n" + url + "\n\nIf you have any questions, please don't hesitate to reach out.\n\nBest regards,\nAvature Professional Services";
+    window.location.href = "mailto:" + encodeURIComponent(shareEmail) + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+    setShowShareModal(false);
+  };
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg,#060D18 0%,#0D2A3A 60%,#060D18 100%)",
-      fontFamily: "'DM Sans','Segoe UI',sans-serif",
-      color: "#F9FAFB",
-    }}>
+    <div style={{ fontFamily:"'DM Sans','Segoe UI',sans-serif", background:"#0b1120", minHeight:"100vh", color:"#e2e8f0" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
+        *{box-sizing:border-box}
+        .ai-score-btn{transition:all 0.15s}
+        .ai-score-btn:hover{filter:brightness(1.15)}
+        .ai-stage-btn{transition:all 0.15s}
+        .ai-stage-btn:hover{background:#1e293b!important;color:#f8fafc!important}
+        .ai-share-input:focus{border-color:#6366f1!important;outline:none;box-shadow:0 0 0 3px #6366f133}
+      `}</style>
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.7)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:16, padding:"36px 32px", width:"100%", maxWidth:440, boxShadow:"0 24px 64px rgba(0,0,0,0.6)" }}>
+            <h3 style={{ margin:"0 0 6px", fontSize:17, fontWeight:700, color:"#f8fafc" }}>Share Assessment</h3>
+            <p style={{ margin:"0 0 24px", fontSize:13, color:"#475569", lineHeight:1.6 }}>Send this assessment to a client to complete. You can pre-fill their name and organisation so it's personalised when they open it.</p>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ display:"block", fontSize:11, color:"#94a3b8", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>Client Name</label>
+              <input className="ai-share-input" value={clientName} onChange={e=>setClientName(e.target.value)} placeholder="e.g. Sarah Johnson" style={{ width:"100%", background:"#1e293b", border:"1px solid #334155", borderRadius:8, color:"#f8fafc", padding:"10px 14px", fontSize:13, transition:"border-color 0.2s, box-shadow 0.2s" }}/>
+            </div>
+            <div style={{ marginBottom:14 }}>
+              <label style={{ display:"block", fontSize:11, color:"#94a3b8", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>Organisation</label>
+              <input className="ai-share-input" value={clientOrg} onChange={e=>setClientOrg(e.target.value)} placeholder="e.g. Acme Corp" style={{ width:"100%", background:"#1e293b", border:"1px solid #334155", borderRadius:8, color:"#f8fafc", padding:"10px 14px", fontSize:13, transition:"border-color 0.2s, box-shadow 0.2s" }}/>
+            </div>
+            <div style={{ marginBottom:24 }}>
+              <label style={{ display:"block", fontSize:11, color:"#94a3b8", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>Send To (Email)</label>
+              <input className="ai-share-input" type="email" value={shareEmail} onChange={e=>setShareEmail(e.target.value)} placeholder="client@company.com" style={{ width:"100%", background:"#1e293b", border:"1px solid #334155", borderRadius:8, color:"#f8fafc", padding:"10px 14px", fontSize:13, transition:"border-color 0.2s, box-shadow 0.2s" }}/>
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button onClick={handleShare} disabled={!shareEmail} style={{ flex:1, background: shareEmail ? "linear-gradient(135deg,#6366f1,#4f46e5)" : "#1e293b", border:"none", borderRadius:8, color: shareEmail ? "white" : "#475569", padding:"11px", fontSize:13, fontWeight:600, cursor: shareEmail ? "pointer" : "not-allowed", transition:"all 0.2s" }}>
+                ✉ Open in Mail App
+              </button>
+              <button onClick={()=>setShowShareModal(false)} style={{ padding:"11px 20px", background:"transparent", border:"1px solid #334155", borderRadius:8, color:"#64748b", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ background:"linear-gradient(135deg,#0f172a 0%,#1e1b4b 100%)", borderBottom:"1px solid #1e293b", padding:"14px 28px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:10, position:"sticky", top:0, zIndex:50 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+          <img src={LOGO_URI} alt="Avature" style={{ height:20, filter:"brightness(0) invert(1)" }}/>
+          <div style={{ width:1, height:18, background:"#334155" }}/>
+          <button onClick={onBack} style={{ background:"none", border:"none", padding:0, cursor:"pointer", color:"#475569", fontSize:13, fontFamily:"inherit", transition:"color 0.2s" }} onMouseOver={e=>e.currentTarget.style.color="#94a3b8"} onMouseOut={e=>e.currentTarget.style.color="#475569"}>Tools</button>
+          <span style={{ color:"#334155", fontSize:13 }}>›</span>
+          <span style={{ fontSize:13, color:"#94a3b8", fontWeight:500 }}>AI Maturity Assessment</span>
+          {clientOrg && <span style={{ fontSize:12, color:"#6366f1", fontWeight:600, background:"#1e1b4b", padding:"2px 10px", borderRadius:20, border:"1px solid #6366f133" }}>{clientOrg}</span>}
+          <div style={{ fontSize:12, color:"#475569", borderLeft:"1px solid #1e293b", paddingLeft:16 }}>
+            <span style={{ color: answered===total ? "#22c55e" : "#94a3b8", fontWeight:600 }}>{answered}</span>
+            <span style={{ color:"#334155" }}>/{total} answered</span>
+          </div>
+        </div>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          <div style={{ position:"relative" }}>
+            <button onClick={handleSaveAssessment} disabled={saving || answered === 0}
+              style={{ padding:"7px 16px", borderRadius:6, border:"1px solid", borderColor: answered === 0 ? "#1e293b" : "#334155",
+                background:"transparent", color: answered === 0 ? "#334155" : "#94a3b8", fontSize:12, fontWeight:600,
+                cursor: answered === 0 ? "not-allowed" : "pointer", fontFamily:"inherit",
+              }}
+              onMouseOver={e=>{ if(answered>0 && !saving){ e.currentTarget.style.borderColor="#6366f1"; e.currentTarget.style.color="#6366f1"; }}}
+              onMouseOut={e=>{ e.currentTarget.style.borderColor= answered===0?"#1e293b":"#334155"; e.currentTarget.style.color= answered===0?"#334155":"#94a3b8"; }}>
+              {saving ? "Saving…" : "☁ Save"}
+            </button>
+            {savedToast && (
+              <div style={{ position:"absolute", top:"calc(100% + 8px)", right:0, background:"#14532D", border:"1px solid #166534", color:"#4ADE80", borderRadius:6, padding:"6px 12px", fontSize:12, fontWeight:600, whiteSpace:"nowrap", zIndex:99 }}>
+                {savedToast}
+              </div>
+            )}
+          </div>
+          <button onClick={()=>setShowShareModal(true)} style={{ padding:"7px 16px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#94a3b8", fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+            ✉ Share
+          </button>
+          {["assessment","dashboard"].map(v => (
+            <button key={v} onClick={() => setView(v)} style={{ padding:"7px 16px", borderRadius:6, border:"1px solid", borderColor: view===v ? "#6366f1" : "#1e293b", background: view===v ? "#6366f1" : "transparent", color: view===v ? "#fff" : "#64748b", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+              {v === "assessment" ? "Assessment" : "Dashboard"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Client identity banner — shown when names are set */}
+      {(clientName || clientOrg) && (
+        <div style={{ background:"#0f172a", borderBottom:"1px solid #1e293b", padding:"10px 28px", display:"flex", alignItems:"center", gap:16 }}>
+          <span style={{ fontSize:11, color:"#475569", fontWeight:600, textTransform:"uppercase", letterSpacing:"0.08em" }}>Completing for:</span>
+          {clientName && <span style={{ fontSize:13, color:"#f8fafc", fontWeight:600 }}>{clientName}</span>}
+          {clientName && clientOrg && <span style={{ color:"#334155" }}>·</span>}
+          {clientOrg && <span style={{ fontSize:13, color:"#94a3b8" }}>{clientOrg}</span>}
+          <button onClick={()=>setShowShareModal(true)} style={{ marginLeft:"auto", fontSize:11, color:"#475569", background:"none", border:"none", cursor:"pointer", fontFamily:"inherit", padding:0 }}>Edit details</button>
+        </div>
+      )}
+
+      {/* No client yet — prompt */}
+      {!clientName && !clientOrg && (
+        <div style={{ background:"#0f172a", borderBottom:"1px solid #1e293b", padding:"10px 28px", display:"flex", alignItems:"center", gap:12 }}>
+          <span style={{ fontSize:12, color:"#475569" }}>Add client details to personalise this assessment</span>
+          <button onClick={()=>setShowShareModal(true)} style={{ fontSize:12, color:"#6366f1", background:"none", border:"1px solid #6366f133", borderRadius:6, cursor:"pointer", fontFamily:"inherit", padding:"4px 12px", fontWeight:600 }}>+ Add details / Share</button>
+        </div>
+      )}
+
+      {view === "assessment" && (
+        <div style={{ display:"flex", minHeight:"calc(100vh - 100px)" }}>
+          {/* Stage sidebar */}
+          <div style={{ width:155, background:"#0a0f1e", borderRight:"1px solid #1e293b", flexShrink:0, position:"sticky", top:100, height:"calc(100vh - 100px)", overflowY:"auto" }}>
+            {AI_STAGES.map(stage => {
+              const [s,e] = AI_STAGE_RANGES[stage];
+              const qs = AI_QUESTIONS.slice(s,e+1);
+              const done = qs.filter(q => scores[q.id] !== undefined).length;
+              const sc = stageScores[stage];
+              const active = currentStage === stage;
+              return (
+                <button key={stage} className="ai-stage-btn" onClick={() => setCurrentStage(stage)} style={{ width:"100%", padding:"14px 16px", background: active ? "#1e293b" : "transparent", border:"none", borderLeft:"3px solid " + (active ? "#6366f1" : "transparent"), color: active ? "#f8fafc" : "#64748b", textAlign:"left", cursor:"pointer", fontSize:12, fontWeight: active ? 700 : 400 }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:4 }}>
+                    <span>{stage}</span>
+                    {sc !== null && <span style={{ fontSize:11, fontWeight:800, color:aiGetMaturity(sc).color }}>{sc.toFixed(1)}</span>}
+                  </div>
+                  <div style={{ display:"flex", gap:2, marginBottom:4 }}>
+                    {qs.map(q => (<div key={q.id} style={{ width:8, height:4, borderRadius:2, background: scores[q.id] !== undefined ? AI_SCORE_COLORS[scores[q.id]] : "#1e293b" }} />))}
+                  </div>
+                  <div style={{ fontSize:10, color:"#334155" }}>{done}/{qs.length}</div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Questions */}
+          <div style={{ flex:1, overflowY:"auto", padding:"24px 28px" }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:20 }}>
+              <div>
+                <h2 style={{ margin:0, fontSize:17, fontWeight:700, color:"#f8fafc" }}>{currentStage}</h2>
+                <p style={{ margin:"3px 0 0", fontSize:12, color:"#475569" }}>{stageDone}/{stageQs.length} answered · Score each question 0–4</p>
+              </div>
+              <div style={{ display:"flex", gap:8 }}>
+                {stageIdx > 0 && <button onClick={() => setCurrentStage(AI_STAGES[stageIdx-1])} style={{ padding:"6px 14px", borderRadius:6, border:"1px solid #1e293b", background:"transparent", color:"#64748b", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>← {AI_STAGES[stageIdx-1]}</button>}
+                {stageIdx < AI_STAGES.length-1 && <button onClick={() => setCurrentStage(AI_STAGES[stageIdx+1])} style={{ padding:"6px 14px", borderRadius:6, border:"1px solid #1e293b", background:"#1e293b", color:"#e2e8f0", fontSize:12, cursor:"pointer", fontWeight:600, fontFamily:"inherit" }}>{AI_STAGES[stageIdx+1]} →</button>}
+              </div>
+            </div>
+
+            <div style={{ display:"flex", gap:6, marginBottom:24, flexWrap:"wrap" }}>
+              {AI_SCORE_LABELS.map((label, i) => (
+                <div key={i} style={{ display:"flex", alignItems:"center", gap:5, padding:"4px 10px", background:"#0f172a", border:"1px solid " + AI_SCORE_COLORS[i] + "33", borderRadius:20 }}>
+                  <span style={{ fontSize:12, fontWeight:800, color:AI_SCORE_COLORS[i] }}>{i}</span>
+                  <span style={{ fontSize:11, color:"#64748b" }}>{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {stageQs.map((q) => {
+              const selected = scores[q.id];
+              const hasAnswer = selected !== undefined;
+              return (
+                <div key={q.id} style={{ background:"#0f172a", border:"1px solid " + (hasAnswer ? AI_SCORE_COLORS[selected]+"44" : "#1e293b"), borderRadius:10, marginBottom:16, overflow:"hidden" }}>
+                  <div style={{ padding:"16px 20px 12px", borderBottom:"1px solid #1e293b" }}>
+                    <div style={{ display:"flex", gap:8, marginBottom:8, flexWrap:"wrap", alignItems:"center" }}>
+                      <span style={{ fontSize:10, fontWeight:700, color:"#6366f1", background:"#1e1b4b", padding:"2px 8px", borderRadius:10, letterSpacing:"0.05em" }}>{q.id}</span>
+                      <span style={{ fontSize:11, color:"#64748b", background:"#1e293b", padding:"2px 8px", borderRadius:10 }}>{q.category}</span>
+                      <span style={{ fontSize:10, color:AI_ROI_COLOR[q.roi], padding:"2px 8px", borderRadius:10, border:"1px solid " + AI_ROI_COLOR[q.roi] + "44" }}>{q.roi}</span>
+                      {hasAnswer && <span style={{ marginLeft:"auto", fontSize:11, fontWeight:700, color:AI_SCORE_COLORS[selected], background:AI_SCORE_COLORS[selected]+"15", padding:"2px 10px", borderRadius:10 }}>{selected} · {AI_SCORE_LABELS[selected]}</span>}
+                    </div>
+                    <p style={{ margin:0, fontSize:14, color:"#cbd5e1", lineHeight:1.6, fontWeight:500 }}>{q.question}</p>
+                  </div>
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:0 }}>
+                    {q.scores.map((desc, i) => {
+                      const isSelected = selected === i;
+                      return (
+                        <button key={i} className="ai-score-btn" onClick={() => setScores(s => ({ ...s, [q.id]: i }))} style={{ padding:"12px 14px", background: isSelected ? AI_SCORE_COLORS[i]+"18" : "transparent", border:"none", borderRight: i < 4 ? "1px solid #1e293b" : "none", borderTop: isSelected ? "2px solid "+AI_SCORE_COLORS[i] : "2px solid transparent", color:"inherit", textAlign:"left", cursor:"pointer" }}>
+                          <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:6 }}>
+                            <span style={{ fontSize:16, fontWeight:800, color: isSelected ? AI_SCORE_COLORS[i] : "#94a3b8" }}>{i}</span>
+                            <span style={{ fontSize:9, fontWeight:700, color: isSelected ? AI_SCORE_COLORS[i] : "#64748b", letterSpacing:"0.08em", textTransform:"uppercase" }}>{AI_SCORE_LABELS[i]}</span>
+                          </div>
+                          <p style={{ margin:0, fontSize:11, color: isSelected ? "#cbd5e1" : "#94a3b8", lineHeight:1.5 }}>{desc}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            {stageDone === stageQs.length && stageIdx < AI_STAGES.length-1 && (
+              <div style={{ textAlign:"center", padding:"20px 0 8px" }}>
+                <button onClick={() => setCurrentStage(AI_STAGES[stageIdx+1])} style={{ padding:"10px 28px", background:"#6366f1", color:"#fff", border:"none", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Continue to {AI_STAGES[stageIdx+1]} →</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {view === "dashboard" && (
+        <div style={{ padding:"28px 32px", maxWidth:1000, margin:"0 auto" }}>
+          {answered < 5 ? (
+            <div style={{ textAlign:"center", padding:"80px 20px", color:"#475569" }}>
+              <div style={{ fontSize:48, marginBottom:12 }}>📊</div>
+              <p style={{ fontSize:15 }}>Answer at least 5 questions to see your dashboard.</p>
+              <button onClick={() => setView("assessment")} style={{ marginTop:16, padding:"10px 24px", background:"#6366f1", color:"#fff", border:"none", borderRadius:6, fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>Go to Assessment</button>
+            </div>
+          ) : (
+            <>
+              {(clientName || clientOrg) && (
+                <div style={{ marginBottom:24 }}>
+                  <h2 style={{ margin:0, fontSize:20, fontWeight:700, color:"#f8fafc" }}>
+                    AI Maturity Report{clientOrg ? " — " + clientOrg : ""}
+                  </h2>
+                  {clientName && <p style={{ margin:"4px 0 0", fontSize:13, color:"#475569" }}>Completed by {clientName}</p>}
+                </div>
+              )}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))", gap:14, marginBottom:24 }}>
+                {[
+                  { label:"Overall Maturity", score:overall, sub:answered+"/"+total+" answered" },
+                  { label:"Intelligence", score:intelScore, sub:"Content & discovery" },
+                  { label:"Automation", score:autoScore, sub:"Campaigns & workflows" },
+                  { label:"Governance", score:govScore, sub:"Data, AI & compliance" },
+                ].map(({ label, score, sub }) => {
+                  const m = aiGetMaturity(score);
+                  return (
+                    <div key={label} style={{ background:"#0f172a", border:"1px solid "+(score !== null ? m.color+"44" : "#1e293b"), borderRadius:8, padding:"18px 20px" }}>
+                      <div style={{ fontSize:11, color:"#64748b", fontWeight:500, textTransform:"uppercase", letterSpacing:"0.06em" }}>{label}</div>
+                      <div style={{ display:"flex", alignItems:"baseline", gap:8, margin:"8px 0 4px" }}>
+                        <span style={{ fontSize:32, fontWeight:800, color: score !== null ? m.color : "#334155" }}>{score !== null ? score.toFixed(1) : "—"}</span>
+                        {score !== null && <span style={{ fontSize:11, color:m.color, fontWeight:600 }}>{m.label}</span>}
+                      </div>
+                      {score !== null && <div style={{ background:"#1e293b", borderRadius:4, height:5, overflow:"hidden", marginBottom:6 }}><div style={{ width:((score/4)*100)+"%", height:"100%", background:m.color, borderRadius:4 }}/></div>}
+                      <div style={{ fontSize:10, color:"#334155" }}>{sub}</div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:8, padding:"22px", marginBottom:16 }}>
+                <h3 style={{ margin:"0 0 18px", fontSize:14, fontWeight:700, color:"#f8fafc" }}>Maturity by Stage</h3>
+                <div style={{ display:"grid", gap:12 }}>
+                  {AI_STAGES.map(stage => {
+                    const sc = stageScores[stage];
+                    const m = aiGetMaturity(sc);
+                    const [s,e] = AI_STAGE_RANGES[stage];
+                    const qs = AI_QUESTIONS.slice(s,e+1);
+                    const done = qs.filter(q => scores[q.id] !== undefined).length;
+                    return (
+                      <div key={stage}>
+                        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
+                          <span style={{ fontSize:12, fontWeight:600, color:"#cbd5e1" }}>{stage}</span>
+                          <span style={{ fontSize:12 }}>
+                            {sc !== null ? <span style={{ color:m.color, fontWeight:700 }}>{sc.toFixed(1)} · {m.label}</span> : <span style={{ color:"#334155" }}>No data</span>}
+                            <span style={{ color:"#334155" }}> ({done}/{qs.length})</span>
+                          </span>
+                        </div>
+                        <div style={{ background:"#1e293b", borderRadius:4, height:8, overflow:"hidden" }}>
+                          {sc !== null && <div style={{ width:((sc/4)*100)+"%", height:"100%", background:m.color, borderRadius:4, transition:"width 0.5s" }}/>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {(() => {
+                const critical = AI_QUESTIONS.filter(q => scores[q.id] !== undefined && scores[q.id] < 2);
+                const building = AI_QUESTIONS.filter(q => scores[q.id] !== undefined && scores[q.id] >= 2 && scores[q.id] < 3);
+                if (!critical.length && !building.length) return null;
+                return (
+                  <div style={{ background:"#0f172a", border:"1px solid #1e293b", borderRadius:8, padding:"22px" }}>
+                    <h3 style={{ margin:"0 0 16px", fontSize:14, fontWeight:700, color:"#f8fafc" }}>Priority Recommendations</h3>
+                    {critical.length > 0 && (
+                      <div style={{ marginBottom:14 }}>
+                        <div style={{ fontSize:11, fontWeight:700, color:"#ef4444", letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:8 }}>🔴 Critical Gaps — Score below 2</div>
+                        {critical.map(q => (
+                          <div key={q.id} style={{ display:"flex", gap:10, padding:"10px 14px", background:"#1a0a0a", border:"1px solid #3f1515", borderRadius:6, marginBottom:6 }}>
+                            <span style={{ fontSize:10, fontWeight:700, color:"#ef4444", flexShrink:0, paddingTop:2 }}>{q.id}</span>
+                            <div>
+                              <div style={{ fontSize:12, fontWeight:600, color:"#fca5a5", marginBottom:2 }}>{q.category} <span style={{ color:"#64748b", fontWeight:400 }}>· {q.stage}</span></div>
+                              <div style={{ fontSize:11, color:"#64748b" }}>{q.question}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {building.length > 0 && (
+                      <div>
+                        <div style={{ fontSize:11, fontWeight:700, color:"#eab308", letterSpacing:"0.1em", textTransform:"uppercase", marginBottom:8 }}>🟡 Building — Score 2 to 3</div>
+                        {building.map(q => (
+                          <div key={q.id} style={{ display:"flex", gap:10, padding:"10px 14px", background:"#1a1400", border:"1px solid #3d3000", borderRadius:6, marginBottom:6 }}>
+                            <span style={{ fontSize:10, fontWeight:700, color:"#eab308", flexShrink:0, paddingTop:2 }}>{q.id}</span>
+                            <div>
+                              <div style={{ fontSize:12, fontWeight:600, color:"#fde68a", marginBottom:2 }}>{q.category} <span style={{ color:"#64748b", fontWeight:400 }}>· {q.stage}</span></div>
+                              <div style={{ fontSize:11, color:"#64748b" }}>{q.question}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment }) {
+  const tools = [
+    { id:"calculator",  title:"Implementation Calculator",      description:"T&M scoping tool for Avature implementations. Configure phases, complexity, resources and export a professional proposal.", icon:"📊", status:"live",   color:"#1A6B7C" },
+    { id:"proposal",    title:"Business Proposal Generator",    description:"Generate comprehensive, branded business proposals tailored to client requirements and Avature solutions.",               icon:"📋", status:"coming", color:"#2E6DB4" },
+    { id:"ai-maturity", title:"AI Maturity Self-Assessment",    description:"Evaluate your organisation's AI readiness across key dimensions and receive a tailored roadmap.",                        icon:"🧠", status:"live",   color:"#7C3AED" },
+  ];
+
+  const [plans, setPlans] = useState([]);
+  const [assessments, setAssessments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [activeTab, setActiveTab] = useState("plans");
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [p, a] = await Promise.all([db.getImplementations(), db.getAssessments()]);
+        setPlans(p || []);
+        setAssessments(a || []);
+      } catch(e) {
+        setDbError("Could not load saved records — " + e.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const handleDeletePlan = async (id) => {
+    if (!window.confirm("Delete this implementation plan?")) return;
+    setDeleting(id);
+    try {
+      await db.deleteImplementation(id);
+      setPlans(p => p.filter(x => x.id !== id));
+    } catch(e) { alert("Delete failed: " + e.message); }
+    finally { setDeleting(null); }
+  };
+
+  const handleDeleteAssessment = async (id) => {
+    if (!window.confirm("Delete this assessment?")) return;
+    setDeleting(id);
+    try {
+      await db.deleteAssessment(id);
+      setAssessments(a => a.filter(x => x.id !== id));
+    } catch(e) { alert("Delete failed: " + e.message); }
+    finally { setDeleting(null); }
+  };
+
+  const fmtDate = (iso) => {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" }) + " " + d.toLocaleTimeString("en-GB", { hour:"2-digit", minute:"2-digit" });
+  };
+
+  const fmtCost = (n, currency) => {
+    const sym = { USD:"$", EUR:"€", GBP:"£", AED:"AED " }[currency] || "$";
+    return sym + Number(n).toLocaleString();
+  };
+
+  const totalRecords = plans.length + assessments.length;
+
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#060D18 0%,#0D2A3A 60%,#060D18 100%)", fontFamily:"'DM Sans','Segoe UI',sans-serif", color:"#F9FAFB" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
         *{box-sizing:border-box}
@@ -323,88 +828,163 @@ function Dashboard({ onSelectTool, onSignOut }) {
         .tool-card-disabled{cursor:not-allowed;opacity:0.55}
         .tool-card-disabled:hover{transform:none!important}
         .signout-dash:hover{color:#F9FAFB!important}
+        .rec-row:hover{background:#111827!important}
+        .del-btn:hover{color:#F87171!important;border-color:#F8717144!important}
+        .dash-tab{transition:all 0.15s;cursor:pointer}
+        .dash-tab:hover{color:#F9FAFB!important}
       `}</style>
 
       {/* Header */}
-      <div style={{background:"linear-gradient(180deg,#0D1B30 0%,#060D18 100%)", borderBottom:"1px solid #1F2937", padding:"0 40px"}}>
-        <div style={{maxWidth:1100, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"20px 0"}}>
-          <div style={{display:"flex", alignItems:"center", gap:16}}>
-            <img src={LOGO_URI} alt="Avature" style={{height:24, filter:"brightness(0) invert(1)"}}/>
-            <div style={{width:1, height:20, background:"#1F2937"}}/>
-            <span style={{fontSize:14, color:"#6B7280", fontWeight:500}}>Professional Services</span>
+      <div style={{ background:"linear-gradient(180deg,#0D1B30 0%,#060D18 100%)", borderBottom:"1px solid #1F2937", padding:"0 40px" }}>
+        <div style={{ maxWidth:1100, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"20px 0" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+            <img src={LOGO_URI} alt="Avature" style={{ height:24, filter:"brightness(0) invert(1)" }}/>
+            <div style={{ width:1, height:20, background:"#1F2937" }}/>
+            <span style={{ fontSize:14, color:"#6B7280", fontWeight:500 }}>Professional Services</span>
           </div>
-          <button className="signout-dash" onClick={onSignOut} style={{
-            background:"transparent", border:"none", color:"#374151",
-            fontSize:13, cursor:"pointer", fontFamily:"inherit", transition:"color 0.2s",
-          }}>Sign out</button>
+          <button className="signout-dash" onClick={onSignOut} style={{ background:"transparent", border:"none", color:"#374151", fontSize:13, cursor:"pointer", fontFamily:"inherit", transition:"color 0.2s" }}>Sign out</button>
         </div>
       </div>
 
       {/* Hero */}
-      <div style={{maxWidth:1100, margin:"0 auto", padding:"64px 40px 40px"}}>
-        <div style={{marginBottom:8}}>
-          <span style={{fontSize:12, color:"#1A6B7C", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase"}}>Avature Tools</span>
+      <div style={{ maxWidth:1100, margin:"0 auto", padding:"52px 40px 32px" }}>
+        <div style={{ marginBottom:8 }}>
+          <span style={{ fontSize:12, color:"#1A6B7C", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase" }}>Avature Tools</span>
         </div>
-        <h1 style={{fontSize:36, fontWeight:700, margin:"0 0 12px", lineHeight:1.2, color:"#F9FAFB"}}>
-          Professional Services Hub
-        </h1>
-        <p style={{fontSize:16, color:"#6B7280", margin:0, maxWidth:520, lineHeight:1.6}}>
+        <h1 style={{ fontSize:34, fontWeight:700, margin:"0 0 10px", lineHeight:1.2, color:"#F9FAFB" }}>Professional Services Hub</h1>
+        <p style={{ fontSize:15, color:"#6B7280", margin:0, maxWidth:520, lineHeight:1.6 }}>
           A suite of tools to support scoping, proposals, and client engagement across the full Avature implementation lifecycle.
         </p>
       </div>
 
       {/* Tool Cards */}
-      <div style={{maxWidth:1100, margin:"0 auto", padding:"0 40px 80px"}}>
-        <div style={{display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))", gap:24}}>
+      <div style={{ maxWidth:1100, margin:"0 auto", padding:"0 40px 40px" }}>
+        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(300px,1fr))", gap:20 }}>
           {tools.map(tool => {
             const isLive = tool.status === "live";
             return (
-              <div
-                key={tool.id}
-                className={"tool-card" + (isLive ? "" : " tool-card-disabled")}
-                onClick={() => isLive && onSelectTool(tool.id)}
-                style={{
-                  background:"#0D1117",
-                  border:"1px solid " + (isLive ? tool.color + "44" : "#1F2937"),
-                  borderRadius:16,
-                  padding:"32px 28px",
-                  boxShadow:"0 4px 24px rgba(0,0,0,0.3)",
-                  position:"relative",
-                  overflow:"hidden",
-                }}>
-                {/* Top accent bar */}
-                <div style={{position:"absolute", top:0, left:0, right:0, height:2, background: isLive ? ("linear-gradient(90deg," + tool.color + "," + tool.color + "88)") : "#1F2937"}}/>
-
-                {/* Status badge */}
-                <div style={{position:"absolute", top:20, right:20}}>
+              <div key={tool.id} className={"tool-card" + (isLive ? "" : " tool-card-disabled")} onClick={() => isLive && onSelectTool(tool.id)}
+                style={{ background:"#0D1117", border:"1px solid " + (isLive ? tool.color + "44" : "#1F2937"), borderRadius:16, padding:"28px 24px", boxShadow:"0 4px 24px rgba(0,0,0,0.3)", position:"relative", overflow:"hidden" }}>
+                <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background: isLive ? "linear-gradient(90deg," + tool.color + "," + tool.color + "88)" : "#1F2937" }}/>
+                <div style={{ position:"absolute", top:18, right:18 }}>
                   {isLive
-                    ? <span style={{background:"#14532D44", border:"1px solid #166534", color:"#4ADE80", fontSize:10, fontWeight:700, borderRadius:20, padding:"3px 10px", letterSpacing:"0.08em"}}>LIVE</span>
-                    : <span style={{background:"#1F2937", border:"1px solid #374151", color:"#6B7280", fontSize:10, fontWeight:600, borderRadius:20, padding:"3px 10px", letterSpacing:"0.08em"}}>COMING SOON</span>
-                  }
+                    ? <span style={{ background:"#14532D44", border:"1px solid #166534", color:"#4ADE80", fontSize:10, fontWeight:700, borderRadius:20, padding:"3px 10px", letterSpacing:"0.08em" }}>LIVE</span>
+                    : <span style={{ background:"#1F2937", border:"1px solid #374151", color:"#6B7280", fontSize:10, fontWeight:600, borderRadius:20, padding:"3px 10px", letterSpacing:"0.08em" }}>COMING SOON</span>}
                 </div>
-
-                {/* Icon */}
-                <div style={{
-                  width:52, height:52, borderRadius:14,
-                  background: tool.color + "18",
-                  border:"1px solid " + tool.color + "33",
-                  display:"flex", alignItems:"center", justifyContent:"center",
-                  fontSize:26, marginBottom:20,
-                }}>{tool.icon}</div>
-
-                {/* Text */}
-                <h3 style={{fontSize:17, fontWeight:700, margin:"0 0 10px", color: isLive ? "#F9FAFB" : "#6B7280", lineHeight:1.3}}>{tool.title}</h3>
-                <p style={{fontSize:13, color:"#6B7280", margin:"0 0 24px", lineHeight:1.6}}>{tool.description}</p>
-
-                {/* CTA */}
-                {isLive && (
-                  <div style={{display:"flex", alignItems:"center", gap:6, color: tool.color, fontSize:13, fontWeight:600}}>
-                    Open tool <span style={{fontSize:16}}>→</span>
-                  </div>
-                )}
+                <div style={{ width:48, height:48, borderRadius:12, background:tool.color + "18", border:"1px solid " + tool.color + "33", display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, marginBottom:16 }}>{tool.icon}</div>
+                <h3 style={{ fontSize:16, fontWeight:700, margin:"0 0 8px", color: isLive ? "#F9FAFB" : "#6B7280", lineHeight:1.3 }}>{tool.title}</h3>
+                <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 20px", lineHeight:1.6 }}>{tool.description}</p>
+                {isLive && <div style={{ display:"flex", alignItems:"center", gap:6, color:tool.color, fontSize:13, fontWeight:600 }}>Open tool <span style={{ fontSize:16 }}>→</span></div>}
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Saved Records */}
+      <div style={{ maxWidth:1100, margin:"0 auto", padding:"0 40px 80px" }}>
+        <div style={{ background:"#0D1117", border:"1px solid #1F2937", borderRadius:16, overflow:"hidden" }}>
+          {/* Records header */}
+          <div style={{ padding:"20px 24px", borderBottom:"1px solid #1F2937", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+              <span style={{ fontSize:15, fontWeight:700, color:"#F9FAFB" }}>Saved Records</span>
+              {!loading && <span style={{ fontSize:12, color:"#4B5563", background:"#1F2937", borderRadius:20, padding:"2px 10px" }}>{totalRecords}</span>}
+            </div>
+            <div style={{ display:"flex", gap:4 }}>
+              {[["plans","📊 Plans", plans.length], ["assessments","🧠 Assessments", assessments.length]].map(([id, label, count]) => (
+                <button key={id} className="dash-tab" onClick={() => setActiveTab(id)} style={{
+                  background: activeTab === id ? "#1F2937" : "transparent",
+                  border:"1px solid " + (activeTab === id ? "#374151" : "transparent"),
+                  borderRadius:8, padding:"6px 14px", fontSize:12, fontWeight: activeTab === id ? 600 : 400,
+                  color: activeTab === id ? "#F9FAFB" : "#4B5563", fontFamily:"inherit",
+                }}>{label} {!loading && <span style={{ opacity:0.6 }}>({count})</span>}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Error */}
+          {dbError && (
+            <div style={{ padding:"16px 24px", background:"#7F1D1D22", color:"#F87171", fontSize:13, borderBottom:"1px solid #1F2937" }}>
+              ⚠ {dbError}
+            </div>
+          )}
+
+          {/* Loading */}
+          {loading && (
+            <div style={{ padding:"40px 24px", textAlign:"center", color:"#4B5563", fontSize:13 }}>
+              Loading records…
+            </div>
+          )}
+
+          {/* Plans tab */}
+          {!loading && activeTab === "plans" && (
+            plans.length === 0
+              ? <div style={{ padding:"40px 24px", textAlign:"center", color:"#4B5563", fontSize:13 }}>No implementation plans saved yet. Create one in the calculator and save it.</div>
+              : <div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 100px 80px 90px 100px 130px", gap:16, padding:"10px 24px", borderBottom:"1px solid #1F2937" }}>
+                    {["Client", "Cost", "Months", "Complexity", "Saved", ""].map((h,i) => (
+                      <span key={i} style={{ fontSize:10, fontWeight:600, color:"#4B5563", textTransform:"uppercase", letterSpacing:"0.08em" }}>{h}</span>
+                    ))}
+                  </div>
+                  {plans.map(p => (
+                    <div key={p.id} className="rec-row" style={{ display:"grid", gridTemplateColumns:"1fr 100px 80px 90px 100px 130px", gap:16, padding:"14px 24px", borderBottom:"1px solid #0D1117", alignItems:"center", transition:"background 0.15s" }}>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600, color:"#F9FAFB" }}>{p.client_name || <span style={{ color:"#374151", fontStyle:"italic" }}>No name</span>}</div>
+                      </div>
+                      <div style={{ fontSize:13, color:"#1A6B7C", fontWeight:600 }}>{fmtCost(p.total_cost, p.currency)}</div>
+                      <div style={{ fontSize:13, color:"#9CA3AF" }}>{p.months}mo</div>
+                      <div style={{ fontSize:13, color:"#9CA3AF" }}>{p.complexity}%</div>
+                      <div style={{ fontSize:11, color:"#4B5563" }}>{fmtDate(p.created_at)}</div>
+                      <div style={{ display:"flex", gap:6 }}>
+                        <button className="del-btn" onClick={() => onLoadPlan(p)} style={{ flex:1, background:"transparent", border:"1px solid #1A6B7C55", borderRadius:6, color:"#1A6B7C", fontSize:11, padding:"4px 8px", cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}
+                          onMouseOver={e=>{ e.currentTarget.style.background="#1A6B7C22"; }} onMouseOut={e=>{ e.currentTarget.style.background="transparent"; }}>
+                          Load
+                        </button>
+                        <button className="del-btn" onClick={() => handleDeletePlan(p.id)} disabled={deleting === p.id} style={{ background:"transparent", border:"1px solid #1F2937", borderRadius:6, color:"#374151", fontSize:11, padding:"4px 8px", cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}>
+                          {deleting === p.id ? "…" : "Delete"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+          )}
+
+          {/* Assessments tab */}
+          {!loading && activeTab === "assessments" && (
+            assessments.length === 0
+              ? <div style={{ padding:"40px 24px", textAlign:"center", color:"#4B5563", fontSize:13 }}>No assessments saved yet. Complete one in the AI Maturity tool and save it.</div>
+              : <div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 80px 80px 80px 100px 130px", gap:16, padding:"10px 24px", borderBottom:"1px solid #1F2937" }}>
+                    {["Name", "Organisation", "Overall", "Intel", "Auto", "Saved", ""].map((h,i) => (
+                      <span key={i} style={{ fontSize:10, fontWeight:600, color:"#4B5563", textTransform:"uppercase", letterSpacing:"0.08em" }}>{h}</span>
+                    ))}
+                  </div>
+                  {assessments.map(a => {
+                    const score = a.overall_score;
+                    const color = score < 1 ? "#ef4444" : score < 2 ? "#f97316" : score < 3 ? "#eab308" : score < 4 ? "#22c55e" : "#6366f1";
+                    const stg = a.stage_scores || {};
+                    return (
+                      <div key={a.id} className="rec-row" style={{ display:"grid", gridTemplateColumns:"1fr 1fr 80px 80px 80px 100px 130px", gap:16, padding:"14px 24px", borderBottom:"1px solid #0D1117", alignItems:"center", transition:"background 0.15s" }}>
+                        <div style={{ fontSize:13, fontWeight:600, color:"#F9FAFB" }}>{a.client_name || <span style={{ color:"#374151", fontStyle:"italic" }}>No name</span>}</div>
+                        <div style={{ fontSize:13, color:"#9CA3AF" }}>{a.client_org || "—"}</div>
+                        <div style={{ fontSize:13, fontWeight:700, color }}>{score !== null && score !== undefined ? Number(score).toFixed(1) : "—"}</div>
+                        <div style={{ fontSize:12, color:"#6B7280" }}>{stg.ATTRACT !== undefined ? Number(stg.ATTRACT).toFixed(1) : "—"}</div>
+                        <div style={{ fontSize:12, color:"#6B7280" }}>{stg.HIRE !== undefined ? Number(stg.HIRE).toFixed(1) : "—"}</div>
+                        <div style={{ fontSize:11, color:"#4B5563" }}>{fmtDate(a.created_at)}</div>
+                        <div style={{ display:"flex", gap:6 }}>
+                          <button onClick={() => onLoadAssessment(a)} style={{ flex:1, background:"transparent", border:"1px solid #7C3AED55", borderRadius:6, color:"#7C3AED", fontSize:11, padding:"4px 8px", cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}
+                            onMouseOver={e=>{ e.currentTarget.style.background="#7C3AED22"; }} onMouseOut={e=>{ e.currentTarget.style.background="transparent"; }}>
+                            Load
+                          </button>
+                          <button className="del-btn" onClick={() => handleDeleteAssessment(a.id)} disabled={deleting === a.id} style={{ background:"transparent", border:"1px solid #1F2937", borderRadius:6, color:"#374151", fontSize:11, padding:"4px 8px", cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}>
+                            {deleting === a.id ? "…" : "Delete"}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+          )}
         </div>
       </div>
     </div>
@@ -876,6 +1456,61 @@ export default function TMCalculator() {
   const [importantNotice, setImportantNotice] = useState(DEFAULT_NOTICE);
   const [currency, setCurrency] = useState("USD");
   const [phaseLayout, setPhaseLayout] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [savedToast, setSavedToast] = useState(null);
+  const [loadedPlanId, setLoadedPlanId] = useState(null);
+  const [loadedAssessment, setLoadedAssessment] = useState(null);
+
+  const handleLoadPlan = (record) => {
+    setClientName(record.client_name || "");
+    setCurrency(record.currency || "USD");
+    setMonths(record.months || 3);
+    setComplexity(record.complexity || 25);
+    setRateAdj(record.rate_adj || 0);
+    if (record.resources) setResources(record.resources);
+    if (record.phase_layout) setLayout(record.phase_layout);
+    else setLayout(null);
+    setLoadedPlanId(record.id);
+    setScreen("calculator");
+  };
+
+  const handleLoadAssessment = (record) => {
+    setLoadedAssessment(record);
+    setScreen("ai-maturity");
+  };
+
+  const handleSavePlan = async () => {
+    setSaving(true);
+    try {
+      const computedNow = calcResources(resources, months, rateAdj, complexity);
+      const total = computedNow.reduce((s,r) => s+r.cost, 0);
+      const totalDays = computedNow.reduce((s,r) => s+r.scaledDays, 0);
+      const payload = {
+        client_name: clientName || null,
+        currency,
+        months,
+        complexity,
+        rate_adj: rateAdj,
+        total_cost: Math.round(total),
+        total_days: Math.round(totalDays),
+        resources,
+        phase_layout: phaseLayout,
+      };
+      if (loadedPlanId) {
+        await db.updateImplementation(loadedPlanId, payload);
+      } else {
+        const result = await db.saveImplementation(payload);
+        if (result && result[0]) setLoadedPlanId(result[0].id);
+      }
+      setSavedToast("Plan saved ✓");
+      setTimeout(() => setSavedToast(null), 3000);
+    } catch(e) {
+      alert("Save failed: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const layoutRef = useRef(null);
   const setLayout = (l) => { layoutRef.current = l; setPhaseLayout(l); };
 
@@ -892,8 +1527,19 @@ export default function TMCalculator() {
   if (!loggedIn) return <LoginPage onLogin={() => { setLoggedIn(true); setScreen("dashboard"); }} />;
   if (screen === "dashboard") return (
     <Dashboard
-      onSelectTool={id => id === "calculator" && setScreen("calculator")}
+      onSelectTool={id => {
+        if (id === "calculator") { setLoadedPlanId(null); setScreen("calculator"); }
+        else if (id === "ai-maturity") { setLoadedAssessment(null); setScreen("ai-maturity"); }
+      }}
       onSignOut={() => { setLoggedIn(false); setScreen("dashboard"); }}
+      onLoadPlan={handleLoadPlan}
+      onLoadAssessment={handleLoadAssessment}
+    />
+  );
+  if (screen === "ai-maturity") return (
+    <AIMaturityTool
+      onBack={() => { setLoadedAssessment(null); setScreen("dashboard"); }}
+      initialData={loadedAssessment}
     />
   );
 
@@ -999,6 +1645,9 @@ export default function TMCalculator() {
               </button>
               <span style={{color:"#374151",fontSize:13}}>›</span>
               <span style={{fontSize:13,color:"#6B7280"}}>Implementation Calculator</span>
+              {loadedPlanId && (
+                <span style={{fontSize:10,fontWeight:600,color:"#1A6B7C",background:"#1A6B7C18",border:"1px solid #1A6B7C44",borderRadius:20,padding:"2px 10px",letterSpacing:"0.06em"}}>EDITING SAVED</span>
+              )}
               {clientName && (
                 <>
                   <div style={{width:1,height:20,background:"#1F2937"}}/>
@@ -1020,7 +1669,7 @@ export default function TMCalculator() {
                 </div>
               )}
               <button className="export-btn"
-                onClick={()=>{ if(freeWeeks!==0){ return; } printProposal(months,computed,phases,clientName,importantNotice,currSym); }}
+                onClick={()=>{ if(freeWeeks!==0){ return; } printProposal(months,computed,phases,clientName,importantNotice,currSym); handleSavePlan(); }}
                 style={{background: freeWeeks!==0 ? "#1F2937" : "linear-gradient(135deg,#1A6B7C,#155E6E)",
                   border:"none",color: freeWeeks!==0 ? "#4B5563" : "white",
                   borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,
@@ -1045,6 +1694,23 @@ export default function TMCalculator() {
                 onMouseOut={e=>{ if(freeWeeks===0) e.currentTarget.style.borderColor="#374151"; }}>
                 ↓ HTML
               </button>
+              <div style={{position:"relative"}}>
+                <button onClick={handleSavePlan} disabled={saving}
+                  style={{background:"transparent", border:"1px solid #374151", borderRadius:8,
+                    color: saving ? "#4B5563" : "#9CA3AF", padding:"9px 14px", fontSize:12, fontWeight:500,
+                    cursor: saving ? "not-allowed" : "pointer", display:"flex", alignItems:"center", gap:6,
+                    transition:"all 0.2s", fontFamily:"inherit",
+                  }}
+                  onMouseOver={e=>{ if(!saving) e.currentTarget.style.borderColor="#1A6B7C"; e.currentTarget.style.color="#1A6B7C"; }}
+                  onMouseOut={e=>{ e.currentTarget.style.borderColor="#374151"; e.currentTarget.style.color="#9CA3AF"; }}>
+                  {saving ? "Saving…" : "☁ Save"}
+                </button>
+                {savedToast && (
+                  <div style={{position:"absolute", top:"calc(100% + 8px)", right:0, background:"#14532D", border:"1px solid #166534", color:"#4ADE80", borderRadius:6, padding:"6px 12px", fontSize:12, fontWeight:600, whiteSpace:"nowrap", zIndex:99}}>
+                    {savedToast}
+                  </div>
+                )}
+              </div>
               <button className="signout" onClick={()=>setScreen("dashboard")}
                 style={{background:"transparent",border:"none",color:"#374151",fontSize:12,
                   cursor:"pointer",padding:"9px 4px",transition:"color 0.2s",fontFamily:"inherit"}}>
