@@ -861,7 +861,7 @@ function AIMaturityTool({ onBack, initialData, guestMode, guestToken }) {
 function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment }) {
   const tools = [
     { id:"calculator",  title:"Implementation Estimator",      description:"T&M scoping tool for Avature implementations. Configure phases, complexity, resources and export a professional proposal.", icon:"📊", status:"live",   color:"#1A6B7C" },
-    { id:"proposal",    title:"Business Proposal Generator",    description:"Generate comprehensive, branded business proposals tailored to client requirements and Avature solutions.",               icon:"📋", status:"coming", color:"#2E6DB4" },
+    { id:"proposal",    title:"Business Proposal Generator",    description:"Generate comprehensive, branded business proposals tailored to client requirements and Avature solutions.",               icon:"📋", status:"live",   color:"#2E6DB4" },
     { id:"ai-maturity", title:"AI Maturity Self-Assessment",    description:"Evaluate your organisation's AI readiness across key dimensions and receive a tailored roadmap.",                        icon:"🧠", status:"live",   color:"#7C3AED" },
   ];
 
@@ -1122,6 +1122,550 @@ function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment }) {
                     );
                   })}
                 </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── BUSINESS PROPOSAL WIZARD ────────────────────────────────────────────────
+const INDUSTRIES = ["Healthcare","Financial Services","Retail & Consumer","Technology","Manufacturing","Energy & Utilities","Logistics & Transportation","Government & Public Sector","Education","Professional Services","Other"];
+
+const PAIN_POINTS = [
+  { id:"high_volume", label:"High-volume frontline hiring" },
+  { id:"clinical", label:"Specialised / clinical recruitment" },
+  { id:"regulatory", label:"Complex regulatory requirements" },
+  { id:"fragmented", label:"Fragmented systems / data silos" },
+  { id:"time_to_fill", label:"Long time-to-fill" },
+  { id:"job_boards", label:"High job board spend" },
+  { id:"events", label:"Inefficient recruiting events" },
+  { id:"internal_mobility", label:"Low internal mobility" },
+  { id:"employer_brand", label:"Employer brand / career site gaps" },
+  { id:"automation", label:"Manual, repetitive recruiter tasks" },
+];
+
+const PROPOSAL_PRODUCTS = [
+  { id:"crm", label:"CRM", icon:"🎯", desc:"Centralise passive & active candidates, automate nurture, proactive pipelining" },
+  { id:"events", label:"Events Management", icon:"📅", desc:"Track registrations, automate follow-up, measure event ROI" },
+  { id:"careers", label:"Career Site", icon:"🌐", desc:"Fully branded, configurable candidate experience with native CMS" },
+  { id:"ats", label:"ATS", icon:"⚙️", desc:"End-to-end applicant tracking with configurable workflows" },
+];
+
+const WIZARD_STEPS = [
+  { id:"basics",    title:"Client Basics",     icon:"🏢" },
+  { id:"scope",     title:"Products in Scope", icon:"📦" },
+  { id:"volumes",   title:"Hiring Volumes",    icon:"📊" },
+  { id:"challenges",title:"Key Challenges",    icon:"⚠️" },
+  { id:"roi",       title:"ROI Parameters",    icon:"💰" },
+  { id:"generate",  title:"Generate & Export", icon:"✨" },
+];
+
+const PRODUCT_DETAILS = {
+  crm: "Centralise passive and active candidate data into a single, searchable proprietary sourcing engine. Build and nurture targeted talent communities, automatically re-surface qualified candidates and deliver personalised outreach at scale. Native, explainable AI supports candidate ranking, sourcing assistance and personalised outreach, while knowledge-based AI agents provide contextual support.",
+  events: "Integrate recruiting events directly into your broader sourcing strategy. Event registrations, check-ins and recruiter feedback are captured in real time and automatically routed into structured pipelines. Automated follow-up campaigns, ROI tracking and mobile-enabled tools ensure every event lead is tracked, engaged and measured.",
+  careers: "Deliver fully branded, personalised candidate experiences aligned precisely with your corporate identity. Internal teams can create and manage pages with structured approval workflows, supported by AI-driven design tools. Data capture and application flows can be configured independently by role, location or regulatory requirement, with built-in analytics tracking conversion performance.",
+  ats: "End-to-end applicant tracking with configurable workflows, automation checkpoints and compliance controls. Configure unique approval paths by role, level or market, with real-time dashboards and deep integration across the Avature platform.",
+};
+
+const ADVANTAGES = [
+  { n:"1", title:"Tailored to Your Complexity", bullets:["Configure unique workflows by job family, facility, region or employment type","Dynamically capture certifications, licenses and compliance documentation","Define real-time dashboards to optimise sourcing and campaign performance","Centralise passive and active candidates with full engagement history","Integrate with any external systems of your choice"] },
+  { n:"2", title:"Enterprise-Grade Agility", bullets:["Modify application processes and data capture at any point","Adjust document requirements for new licensing or compliance standards","Configure new conditional approvals based on role level or specialty","Flexibility to adjust career site flow, layout and content as needs evolve","No system replacement required as your operating model evolves"] },
+  { n:"3", title:"Automation at Scale", bullets:["Automate high-volume hiring workflows end-to-end with human checkpoints","Automate talent rediscovery and nurture campaigns","Automate credential and document requests","Automate interview scheduling, reminders and candidate communications","Automate re-engagement of silver medalists and event-to-interview workflows"] },
+  { n:"4", title:"Native, Configurable AI", bullets:["Deploy fully deterministic AI-driven recommendations and ranking","Create AI agents tailored to your needs across career sites and recruiter workflows","Configure human-in-the-loop review for AI-generated output","Track AI consent and opt-out preferences by candidate or region","Surface actionable insights from surveys, job descriptions and other data"] },
+  { n:"5", title:"Enterprise Scale & Reliability", bullets:["Manage databases with millions of candidate records","Handle significant career site traffic and concurrent user activity","Support global data governance, privacy controls and data residency","Reliable integrations across your broader HR ecosystem","Consistent performance during hiring surges or large-scale campaigns"] },
+  { n:"6", title:"Strategic Partnership", bullets:["Dedicated in-house implementation teams with direct accountability","Structured governance and executive alignment throughout","Customer Advisory Board access shaping strategic product direction","Direct engagement with Avature product and engineering teams","Early access programs before major feature releases"] },
+  { n:"7", title:"Native & Expandable Platform", bullets:["Single native architecture and shared data model across all modules","Consistent candidate experience across career sites, events and nurture","Unified reporting without synchronisation gaps between systems","Centralised governance with configuration flexibility across divisions","Expandable to ATS, Referrals and additional modules as strategy evolves"] },
+];
+
+function ProposalInput({ label, hint, children }) {
+  return (
+    <div style={{ marginBottom:20 }}>
+      <label style={{ display:"block", fontSize:11, fontWeight:700, color:"#94a3b8", letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:6 }}>{label}</label>
+      {hint && <p style={{ fontSize:12, color:"#475569", margin:"0 0 8px", lineHeight:1.5 }}>{hint}</p>}
+      {children}
+    </div>
+  );
+}
+
+function ProposalTextInput({ value, onChange, placeholder }) {
+  return (
+    <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+      style={{ width:"100%", background:"#1e293b", border:"1px solid #334155", borderRadius:8, color:"#f8fafc", padding:"10px 14px", fontSize:13, fontFamily:"inherit", outline:"none", boxSizing:"border-box" }}
+      onFocus={e => e.target.style.borderColor="#2E6DB4"}
+      onBlur={e => e.target.style.borderColor="#334155"}
+    />
+  );
+}
+
+function ProposalNumberInput({ value, onChange, placeholder, prefix, suffix }) {
+  return (
+    <div style={{ display:"flex", alignItems:"center", background:"#1e293b", border:"1px solid #334155", borderRadius:8, overflow:"hidden" }}>
+      {prefix && <span style={{ padding:"10px 12px", color:"#475569", fontSize:13, borderRight:"1px solid #334155" }}>{prefix}</span>}
+      <input type="number" value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+        style={{ flex:1, background:"transparent", border:"none", color:"#f8fafc", padding:"10px 14px", fontSize:13, fontFamily:"inherit", outline:"none", minWidth:0 }}
+      />
+      {suffix && <span style={{ padding:"10px 12px", color:"#475569", fontSize:13, borderLeft:"1px solid #334155" }}>{suffix}</span>}
+    </div>
+  );
+}
+
+function BusinessProposalWizard({ onBack }) {
+  const [step, setStep] = useState(0);
+  const [generating, setGenerating] = useState(false);
+  const [generatedContent, setGeneratedContent] = useState(null);
+  const [genError, setGenError] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const [form, setForm] = useState({
+    clientName:"", industry:"", preparedBy:"",
+    products:["crm","events","careers"],
+    annualHires:"", totalApplications:"", interviews:"", events:"", careerSiteVisitors:"", recruiterCount:"", openRoles:"",
+    painPoints:[], challengeContext:"",
+    timeToFillReduction:"18", internalMobilityCurrent:"30", internalMobilityTarget:"40",
+    jobBoardReduction:"20", recruiterProductivity:"15", avgCostPerHire:"4500",
+  });
+
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const toggleArr = (k, v) => setForm(f => ({ ...f, [k]: f[k].includes(v) ? f[k].filter(x => x !== v) : [...f[k], v] }));
+
+  const roi = useMemo(() => {
+    const hires = Number(form.annualHires) || 0;
+    const recruiters = Number(form.recruiterCount) || 0;
+    const ttfR = (Number(form.timeToFillReduction) || 18) / 100;
+    const mobC = (Number(form.internalMobilityCurrent) || 30) / 100;
+    const mobT = (Number(form.internalMobilityTarget) || 40) / 100;
+    const jbR = (Number(form.jobBoardReduction) || 20) / 100;
+    const prodR = (Number(form.recruiterProductivity) || 15) / 100;
+    const cph = Number(form.avgCostPerHire) || 4500;
+    const mobilityLift = Math.round((mobT - mobC) * hires);
+    const ttfDays = Math.round(hires * ttfR * 5);
+    const mobRoiLow  = mobilityLift * cph * 0.6;
+    const mobRoiHigh = mobilityLift * cph * 0.8;
+    const ttfRoiLow  = ttfDays * 350 * 0.4;
+    const ttfRoiHigh = ttfDays * 350 * 0.6;
+    const prodRoiLow  = recruiters * 65000 * prodR * 0.5;
+    const prodRoiHigh = recruiters * 65000 * prodR * 0.8;
+    const jbRoiLow  = hires * (1 - mobC) * 300 * jbR * 0.7;
+    const jbRoiHigh = hires * (1 - mobC) * 300 * jbR;
+    return {
+      totalLow: Math.round((mobRoiLow + ttfRoiLow + prodRoiLow + jbRoiLow) / 1000) * 1000,
+      totalHigh: Math.round((mobRoiHigh + ttfRoiHigh + prodRoiHigh + jbRoiHigh) / 1000) * 1000,
+      mobilityLift, ttfDays,
+    };
+  }, [form]);
+
+  const fmtM = n => {
+    if (!n) return "N/A";
+    if (n >= 1000000) return "$" + (n/1000000).toFixed(1) + "M";
+    if (n >= 1000) return "$" + Math.round(n/1000) + "K";
+    return "$" + n;
+  };
+
+  const handleGenerate = async () => {
+    setGenerating(true); setGenError(null);
+    try {
+      const selProducts = PROPOSAL_PRODUCTS.filter(p => form.products.includes(p.id)).map(p => p.label).join(", ");
+      const selPains = PAIN_POINTS.filter(p => form.painPoints.includes(p.id)).map(p => p.label).join(", ");
+      const client = form.clientName || "the organisation";
+      const prompt = `You are a senior enterprise sales consultant at Avature writing a business case for ${client} in the ${form.industry || "enterprise"} sector.
+
+Return ONLY a JSON object with these exact string keys. Use plain text, no markdown. Keep each value focused and professional:
+
+{
+  "execSummary": "3-4 sentence executive summary for ${client}. Reference scale: ${form.annualHires || "large volume"} annual hires, ${form.totalApplications || "high"} applications, ${form.careerSiteVisitors || "significant"} career site visitors, ${form.recruiterCount || "large"} recruiters. Focus on why Avature's ${selProducts} address their specific needs.",
+  "execROI": "2 sentences stating ${client} could avoid ${fmtM(roi.totalLow)}–${fmtM(roi.totalHigh)} annually through recruiter productivity gains, time-to-fill reduction of ${form.timeToFillReduction}%, internal mobility increase and job board spend reduction.",
+  "challengeIntro": "2-3 sentences on ${client}'s TA environment. Challenges: ${selPains}${form.challengeContext ? ". Context: " + form.challengeContext : ""}. Be specific to ${form.industry || "their"} sector.",
+  "roiTimeToFill": "2 sentences on ${form.timeToFillReduction}% time-to-fill reduction across ${form.annualHires || "their"} annual hires and the vacancy cost and care delivery impact avoided.",
+  "roiMobility": "2 sentences on increasing internal mobility from ${form.internalMobilityCurrent}% to ${form.internalMobilityTarget}%, representing ${roi.mobilityLift} hires shifted from external to internal placement.",
+  "roiProductivity": "2 sentences on ${form.recruiterProductivity}% productivity improvement across ${form.recruiterCount || "the"} recruitment team through automation of sourcing, scheduling and reporting.",
+  "roiJobBoards": "2 sentences on ${form.jobBoardReduction}% job board spend reduction driven by proactive CRM pipelining, talent rediscovery and segmentation.",
+  "partnershipClose": "2-3 sentences on why Avature is the right long-term strategic partner for ${client}, referencing their ${form.industry || "industry"} context, Avature's average 10-year customer tenure and dedicated partnership model."
+}
+
+Return ONLY valid JSON. No markdown fences.`;
+
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1500, messages:[{role:"user",content:prompt}] }),
+      });
+      const data = await resp.json();
+      const text = data.content?.map(b=>b.text||"").join("").replace(/```json|```/g,"").trim();
+      setGeneratedContent(JSON.parse(text));
+      setStep(5);
+    } catch(e) { setGenError("Generation failed: " + e.message); }
+    finally { setGenerating(false); }
+  };
+
+  const handleDownloadPPTX = async () => {
+    setDownloading(true);
+    try {
+      await new Promise((res,rej) => {
+        if (window.PptxGenJS) return res();
+        const s = document.createElement("script");
+        s.src = "https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js";
+        s.onload = res; s.onerror = rej;
+        document.head.appendChild(s);
+      });
+
+      const pptx = new window.PptxGenJS();
+      pptx.layout = "LAYOUT_WIDE";
+      pptx.title = `Avature Business Case — ${form.clientName || "Client"}`;
+      const C = { dark:"060D18", navy:"0D1B30", teal:"1A6B7C", blue:"2E6DB4", white:"FFFFFF", offWhite:"E2E8F0", muted:"64748B" };
+      const F = "Calibri";
+      const client = form.clientName || "Client";
+      const gc = generatedContent;
+      const selProds = PROPOSAL_PRODUCTS.filter(p => form.products.includes(p.id));
+
+      const addSlide = () => {
+        const sl = pptx.addSlide();
+        sl.background = { color: C.navy };
+        sl.addShape(pptx.ShapeType.rect, { x:0, y:0, w:"100%", h:0.06, fill:{color:C.teal} });
+        return sl;
+      };
+
+      // SLIDE 1 — Cover
+      const s1 = pptx.addSlide();
+      s1.background = { color: C.dark };
+      s1.addShape(pptx.ShapeType.rect, { x:0, y:0, w:"100%", h:3.5, fill:{color:C.navy} });
+      s1.addShape(pptx.ShapeType.rect, { x:0, y:0, w:"100%", h:0.06, fill:{color:C.teal} });
+      s1.addText("BUSINESS CASE", { x:0.6, y:0.55, w:9, h:0.4, fontSize:11, bold:true, color:C.teal, fontFace:F, charSpacing:3 });
+      s1.addText(client, { x:0.6, y:1.05, w:9, h:1.2, fontSize:46, bold:true, color:C.white, fontFace:F });
+      s1.addShape(pptx.ShapeType.rect, { x:0.6, y:2.45, w:1.4, h:0.05, fill:{color:C.teal} });
+      s1.addText(selProds.map(p=>p.label).join(" · "), { x:0.6, y:2.6, w:9, h:0.5, fontSize:15, color:C.offWhite, fontFace:F });
+      s1.addShape(pptx.ShapeType.rect, { x:0, y:3.5, w:"100%", h:4.0, fill:{color:C.dark} });
+      s1.addText("Prepared by", { x:0.6, y:4.0, w:5, h:0.3, fontSize:11, color:C.muted, fontFace:F });
+      s1.addText(form.preparedBy || "Avature Professional Services", { x:0.6, y:4.35, w:6, h:0.45, fontSize:17, bold:true, color:C.white, fontFace:F });
+      if (form.industry) s1.addText(form.industry, { x:0.6, y:4.9, w:5, h:0.35, fontSize:13, color:C.muted, fontFace:F });
+
+      // SLIDE 2 — Executive Summary
+      const s2 = addSlide();
+      s2.addText("Executive Summary", { x:0.5, y:0.22, w:9, h:0.6, fontSize:26, bold:true, color:C.white, fontFace:F });
+      s2.addShape(pptx.ShapeType.rect, { x:0.5, y:0.9, w:5.8, h:4.6, fill:{color:C.dark}, line:{color:C.teal+"44",width:1}, rectRadius:0.1 });
+      s2.addText(gc?.execSummary || "", { x:0.72, y:1.08, w:5.36, h:3.5, fontSize:13, color:C.offWhite, fontFace:F, valign:"top", wrap:true });
+      s2.addShape(pptx.ShapeType.rect, { x:6.5, y:0.9, w:3.2, h:1.9, fill:{color:C.teal}, rectRadius:0.1 });
+      s2.addText("Potential Annual\nCost Avoidance", { x:6.6, y:1.0, w:3.0, h:0.55, fontSize:11, bold:true, color:C.white, fontFace:F, align:"center" });
+      s2.addText(fmtM(roi.totalLow)+"–"+fmtM(roi.totalHigh), { x:6.5, y:1.55, w:3.2, h:1.0, fontSize:30, bold:true, color:C.white, fontFace:F, align:"center" });
+      s2.addShape(pptx.ShapeType.rect, { x:6.5, y:2.95, w:3.2, h:2.55, fill:{color:C.dark}, line:{color:C.blue+"44",width:1}, rectRadius:0.1 });
+      s2.addText(gc?.execROI || "", { x:6.65, y:3.1, w:2.9, h:2.25, fontSize:11.5, color:C.offWhite, fontFace:F, valign:"top", wrap:true });
+
+      // SLIDE 3 — Client Context
+      const s3 = addSlide();
+      s3.addText(client+": Talent Acquisition Context", { x:0.5, y:0.22, w:9.5, h:0.6, fontSize:23, bold:true, color:C.white, fontFace:F });
+      s3.addText(gc?.challengeIntro || "", { x:0.5, y:0.88, w:9.5, h:0.9, fontSize:13, color:C.offWhite, fontFace:F, wrap:true });
+      const stats = [
+        {l:"Annual Hires",v:Number(form.annualHires).toLocaleString()},
+        {l:"Applications",v:Number(form.totalApplications).toLocaleString()},
+        {l:"Interviews / Year",v:Number(form.interviews).toLocaleString()},
+        {l:"Recruiting Events",v:Number(form.events).toLocaleString()},
+        {l:"Career Site Visitors",v:Number(form.careerSiteVisitors).toLocaleString()},
+        {l:"Recruiters",v:Number(form.recruiterCount).toLocaleString()},
+      ].filter(s => s.v && s.v !== "0" && s.v !== "NaN");
+      stats.forEach((s,i) => {
+        const col=i%3; const row=Math.floor(i/3);
+        const x=0.5+col*3.3; const y=2.05+row*1.65;
+        s3.addShape(pptx.ShapeType.rect, {x,y,w:3.1,h:1.5,fill:{color:C.dark},line:{color:C.teal+"44",width:1},rectRadius:0.08});
+        s3.addText(s.v, {x,y:y+0.1,w:3.1,h:0.75,fontSize:30,bold:true,color:C.teal,fontFace:F,align:"center"});
+        s3.addText(s.l, {x,y:y+0.9,w:3.1,h:0.4,fontSize:11,color:C.muted,fontFace:F,align:"center"});
+      });
+
+      // SLIDE 4 — Financial Impact
+      const s4 = addSlide();
+      s4.addText("Financial Impact Drivers", { x:0.5, y:0.22, w:9, h:0.6, fontSize:23, bold:true, color:C.white, fontFace:F });
+      const roiItems = [
+        {n:"01",title:`Time-to-Fill Reduction (${form.timeToFillReduction}%)`,text:gc?.roiTimeToFill||""},
+        {n:"02",title:`Internal Mobility (${form.internalMobilityCurrent}%→${form.internalMobilityTarget}%)`,text:gc?.roiMobility||""},
+        {n:"03",title:`Recruiter Productivity (+${form.recruiterProductivity}%)`,text:gc?.roiProductivity||""},
+        {n:"04",title:`Job Board Spend Reduction (${form.jobBoardReduction}%)`,text:gc?.roiJobBoards||""},
+      ];
+      roiItems.forEach((item,i) => {
+        const col=i%2; const row=Math.floor(i/2);
+        const x=0.4+col*5.1; const y=0.98+row*2.45;
+        s4.addShape(pptx.ShapeType.rect, {x,y,w:4.85,h:2.3,fill:{color:C.dark},line:{color:C.blue+"44",width:1},rectRadius:0.1});
+        s4.addText(item.n, {x:x+0.15,y:y+0.12,w:0.5,h:0.45,fontSize:20,bold:true,color:C.teal,fontFace:F});
+        s4.addText(item.title, {x:x+0.62,y:y+0.14,w:4.1,h:0.45,fontSize:12,bold:true,color:C.white,fontFace:F,valign:"middle"});
+        s4.addText(item.text, {x:x+0.15,y:y+0.68,w:4.55,h:1.5,fontSize:11,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
+      });
+      s4.addShape(pptx.ShapeType.rect, {x:0.4,y:5.7,w:9.5,h:0.7,fill:{color:C.teal},rectRadius:0.08});
+      s4.addText(`Estimated Total Annual Impact: ${fmtM(roi.totalLow)} – ${fmtM(roi.totalHigh)}`, {x:0.4,y:5.7,w:9.5,h:0.7,fontSize:16,bold:true,color:C.white,fontFace:F,align:"center",valign:"middle"});
+
+      // SLIDE 5 — Proposed Solutions
+      const s5 = addSlide();
+      s5.addText("Proposed Solutions", { x:0.5, y:0.22, w:9, h:0.6, fontSize:23, bold:true, color:C.white, fontFace:F });
+      const colW = 10.0 / selProds.length;
+      selProds.forEach((p,i) => {
+        const x=0.35+i*colW;
+        s5.addShape(pptx.ShapeType.rect, {x,y:0.92,w:colW-0.2,h:5.6,fill:{color:C.dark},line:{color:C.teal+"44",width:1},rectRadius:0.1});
+        s5.addShape(pptx.ShapeType.rect, {x:x+0.15,y:1.06,w:colW-0.5,h:0.05,fill:{color:C.teal}});
+        s5.addText(p.icon, {x:x+0.15,y:1.2,w:0.75,h:0.6,fontSize:24,align:"center"});
+        s5.addText(p.label, {x:x+0.88,y:1.28,w:colW-1.15,h:0.55,fontSize:15,bold:true,color:C.white,fontFace:F,valign:"middle"});
+        s5.addText(PRODUCT_DETAILS[p.id]||p.desc, {x:x+0.2,y:2.0,w:colW-0.55,h:4.3,fontSize:11,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
+      });
+
+      // SLIDE 6 — Avature Advantage 1-4
+      const s6 = addSlide();
+      s6.addText("The Avature Advantage", { x:0.5, y:0.22, w:9, h:0.6, fontSize:23, bold:true, color:C.white, fontFace:F });
+      ADVANTAGES.slice(0,4).forEach((adv,i) => {
+        const col=i%2; const row=Math.floor(i/2);
+        const x=0.4+col*5.1; const y=0.92+row*2.75;
+        s6.addShape(pptx.ShapeType.rect, {x,y,w:4.85,h:2.6,fill:{color:C.dark},line:{color:C.blue+"44",width:1},rectRadius:0.1});
+        s6.addText(adv.n+". "+adv.title, {x:x+0.15,y:y+0.12,w:4.55,h:0.5,fontSize:13,bold:true,color:C.white,fontFace:F});
+        s6.addShape(pptx.ShapeType.rect, {x:x+0.15,y:y+0.65,w:4.35,h:0.03,fill:{color:C.teal+"66"}});
+        s6.addText(adv.bullets.slice(0,4).map(b=>"• "+b).join("\n"), {x:x+0.15,y:y+0.75,w:4.55,h:1.72,fontSize:10.5,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
+      });
+
+      // SLIDE 7 — Avature Advantage 5-7
+      const s7 = addSlide();
+      s7.addText("The Avature Advantage (cont.)", { x:0.5, y:0.22, w:9, h:0.6, fontSize:23, bold:true, color:C.white, fontFace:F });
+      ADVANTAGES.slice(4).forEach((adv,i) => {
+        const x=0.4+i*3.45;
+        s7.addShape(pptx.ShapeType.rect, {x,y:0.92,w:3.25,h:4.65,fill:{color:C.dark},line:{color:C.blue+"44",width:1},rectRadius:0.1});
+        s7.addText(adv.n+". "+adv.title, {x:x+0.15,y:0.97+0.05,w:2.95,h:0.55,fontSize:12,bold:true,color:C.white,fontFace:F,wrap:true});
+        s7.addShape(pptx.ShapeType.rect, {x:x+0.15,y:1.6,w:2.8,h:0.03,fill:{color:C.teal+"66"}});
+        s7.addText(adv.bullets.map(b=>"• "+b).join("\n"), {x:x+0.15,y:1.7,w:2.95,h:3.74,fontSize:10,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
+      });
+      s7.addShape(pptx.ShapeType.rect, {x:0.4,y:5.7,w:9.5,h:0.7,fill:{color:C.dark},line:{color:C.teal+"33",width:1},rectRadius:0.08});
+      s7.addText(gc?.partnershipClose||"", {x:0.55,y:5.7,w:9.2,h:0.7,fontSize:11,color:C.offWhite,fontFace:F,valign:"middle",wrap:true});
+
+      // SLIDE 8 — Thank You
+      const s8 = pptx.addSlide();
+      s8.background = { color:C.dark };
+      s8.addShape(pptx.ShapeType.rect, {x:0,y:0,w:"100%",h:0.06,fill:{color:C.teal}});
+      s8.addShape(pptx.ShapeType.rect, {x:0,y:0,w:"100%",h:3.9,fill:{color:C.navy}});
+      s8.addText("Thank You", {x:0.5,y:1.2,w:9.5,h:1.3,fontSize:54,bold:true,color:C.white,fontFace:F,align:"center"});
+      s8.addText("Avature Professional Services", {x:0.5,y:2.65,w:9.5,h:0.5,fontSize:16,color:C.teal,fontFace:F,align:"center",bold:true});
+      s8.addShape(pptx.ShapeType.rect, {x:0,y:3.9,w:"100%",h:3.6,fill:{color:C.dark}});
+      s8.addText(form.preparedBy||"Avature Professional Services", {x:0.5,y:4.55,w:9.5,h:0.5,fontSize:16,bold:true,color:C.white,fontFace:F,align:"center"});
+      s8.addText("avature.net", {x:0.5,y:5.2,w:9.5,h:0.4,fontSize:13,color:C.muted,fontFace:F,align:"center"});
+      s8.addText("CONFIDENTIAL", {x:0.5,y:6.5,w:9.5,h:0.3,fontSize:10,color:C.muted,fontFace:F,align:"center",charSpacing:2});
+
+      await pptx.writeFile({ fileName:`Avature_Business_Case_${client.replace(/\s+/g,"_")}.pptx` });
+    } catch(e) { alert("Download failed: "+e.message); }
+    finally { setDownloading(false); }
+  };
+
+  const canNext = step === 0 ? form.clientName.trim() !== "" : step === 3 ? form.painPoints.length > 0 : true;
+
+  return (
+    <div style={{ fontFamily:"'DM Sans','Segoe UI',sans-serif", background:"#060D18", minHeight:"100vh", color:"#e2e8f0" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap'); *{box-sizing:border-box}`}</style>
+
+      {/* Header */}
+      <div style={{ background:"linear-gradient(180deg,#0D1B30,#060D18)", borderBottom:"1px solid #1F2937", padding:"14px 28px", display:"flex", alignItems:"center", gap:16, position:"sticky", top:0, zIndex:50 }}>
+        <img src={LOGO_URI} alt="Avature" style={{ height:20 }}/>
+        <div style={{ width:1, height:18, background:"#334155" }}/>
+        <button onClick={onBack} style={{ background:"none", border:"none", padding:0, cursor:"pointer", color:"#475569", fontSize:13, fontFamily:"inherit" }}>Tools</button>
+        <span style={{ color:"#334155", fontSize:13 }}>›</span>
+        <span style={{ fontSize:13, color:"#94a3b8", fontWeight:500 }}>Business Proposal Generator</span>
+        {form.clientName && <span style={{ fontSize:12, color:"#2E6DB4", fontWeight:600, background:"#2E6DB418", padding:"2px 10px", borderRadius:20, border:"1px solid #2E6DB433" }}>{form.clientName}</span>}
+      </div>
+
+      {/* Step progress bar */}
+      <div style={{ background:"#0D1B30", borderBottom:"1px solid #1F2937", padding:"0 28px" }}>
+        <div style={{ maxWidth:900, margin:"0 auto", display:"flex" }}>
+          {WIZARD_STEPS.map((s, i) => (
+            <button key={s.id} onClick={() => (i < step || generatedContent) ? setStep(i) : null}
+              style={{ flex:1, padding:"14px 4px", background:"none", border:"none", borderBottom:i===step?"2px solid #2E6DB4":"2px solid transparent", color:i===step?"#60A5FA":i<step||generatedContent?"#64748b":"#1e293b", fontSize:11, fontWeight:600, cursor:(i<step||generatedContent)?"pointer":"default", fontFamily:"inherit", textAlign:"center", display:"flex", alignItems:"center", justifyContent:"center", gap:4, transition:"all 0.2s" }}>
+              {s.icon} <span style={{ display:"none" }}>{s.title}</span>
+              {i < step && <span style={{ color:"#22c55e", marginLeft:2 }}>✓</span>}
+            </button>
+          ))}
+        </div>
+        {/* Step title below bar */}
+        <div style={{ maxWidth:900, margin:"0 auto", paddingBottom:8, textAlign:"center", fontSize:12, color:"#475569" }}>
+          {WIZARD_STEPS[step]?.title}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ maxWidth:860, margin:"0 auto", padding:"40px 24px" }}>
+
+        {/* STEP 0: Client Basics */}
+        {step === 0 && (
+          <div>
+            <h2 style={{ fontSize:22, fontWeight:700, color:"#f8fafc", margin:"0 0 6px" }}>Client Basics</h2>
+            <p style={{ color:"#475569", fontSize:13, margin:"0 0 32px" }}>These details appear on the cover slide and personalise the document throughout.</p>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
+              <div style={{ gridColumn:"1/-1" }}>
+                <ProposalInput label="Client / Organisation Name *">
+                  <ProposalTextInput value={form.clientName} onChange={v=>set("clientName",v)} placeholder="e.g. Qatar Airways"/>
+                </ProposalInput>
+              </div>
+              <ProposalInput label="Industry *">
+                <select value={form.industry} onChange={e=>set("industry",e.target.value)}
+                  style={{ width:"100%", background:"#1e293b", border:"1px solid #334155", borderRadius:8, color:form.industry?"#f8fafc":"#475569", padding:"10px 14px", fontSize:13, fontFamily:"inherit", outline:"none" }}>
+                  <option value="">Select industry…</option>
+                  {INDUSTRIES.map(ind=><option key={ind} value={ind}>{ind}</option>)}
+                </select>
+              </ProposalInput>
+              <ProposalInput label="Prepared By">
+                <ProposalTextInput value={form.preparedBy} onChange={v=>set("preparedBy",v)} placeholder="e.g. James Harris, Avature"/>
+              </ProposalInput>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 1: Products */}
+        {step === 1 && (
+          <div>
+            <h2 style={{ fontSize:22, fontWeight:700, color:"#f8fafc", margin:"0 0 6px" }}>Products in Scope</h2>
+            <p style={{ color:"#475569", fontSize:13, margin:"0 0 32px" }}>Select the Avature products this proposal covers. Each gets a dedicated slide.</p>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+              {PROPOSAL_PRODUCTS.map(p => {
+                const sel = form.products.includes(p.id);
+                return (
+                  <div key={p.id} onClick={()=>toggleArr("products",p.id)}
+                    style={{ padding:"20px", borderRadius:12, border:"1px solid "+(sel?"#2E6DB4":"#1e293b"), background:sel?"#2E6DB418":"#0D1B30", cursor:"pointer", transition:"all 0.15s" }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:8 }}>
+                      <span style={{ fontSize:22 }}>{p.icon}</span>
+                      <span style={{ fontSize:14, fontWeight:700, color:sel?"#60A5FA":"#94a3b8" }}>{p.label}</span>
+                      {sel && <span style={{ marginLeft:"auto", color:"#22c55e" }}>✓</span>}
+                    </div>
+                    <p style={{ fontSize:12, color:"#475569", margin:0, lineHeight:1.5 }}>{p.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* STEP 2: Volumes */}
+        {step === 2 && (
+          <div>
+            <h2 style={{ fontSize:22, fontWeight:700, color:"#f8fafc", margin:"0 0 6px" }}>Hiring Volumes</h2>
+            <p style={{ color:"#475569", fontSize:13, margin:"0 0 32px" }}>These populate the client context slide and drive ROI modelling. Approximate figures are fine.</p>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
+              <ProposalInput label="Annual Hires *" hint="Total external hires per year"><ProposalNumberInput value={form.annualHires} onChange={v=>set("annualHires",v)} placeholder="e.g. 74466"/></ProposalInput>
+              <ProposalInput label="Total Applications / Year"><ProposalNumberInput value={form.totalApplications} onChange={v=>set("totalApplications",v)} placeholder="e.g. 1500000"/></ProposalInput>
+              <ProposalInput label="Interviews Scheduled / Year"><ProposalNumberInput value={form.interviews} onChange={v=>set("interviews",v)} placeholder="e.g. 174250"/></ProposalInput>
+              <ProposalInput label="Recruiting Events / Year"><ProposalNumberInput value={form.events} onChange={v=>set("events",v)} placeholder="e.g. 697"/></ProposalInput>
+              <ProposalInput label="Career Site Visitors / Year"><ProposalNumberInput value={form.careerSiteVisitors} onChange={v=>set("careerSiteVisitors",v)} placeholder="e.g. 14300000"/></ProposalInput>
+              <ProposalInput label="Recruitment Team Size"><ProposalNumberInput value={form.recruiterCount} onChange={v=>set("recruiterCount",v)} placeholder="e.g. 500"/></ProposalInput>
+              <ProposalInput label="Current Open Roles"><ProposalNumberInput value={form.openRoles} onChange={v=>set("openRoles",v)} placeholder="e.g. 15000"/></ProposalInput>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Challenges */}
+        {step === 3 && (
+          <div>
+            <h2 style={{ fontSize:22, fontWeight:700, color:"#f8fafc", margin:"0 0 6px" }}>Key Challenges</h2>
+            <p style={{ color:"#475569", fontSize:13, margin:"0 0 32px" }}>Select all that apply — these shape the AI-generated narrative throughout the document.</p>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:24 }}>
+              {PAIN_POINTS.map(p => {
+                const sel = form.painPoints.includes(p.id);
+                return (
+                  <div key={p.id} onClick={()=>toggleArr("painPoints",p.id)}
+                    style={{ padding:"12px 16px", borderRadius:8, border:"1px solid "+(sel?"#2E6DB4":"#1e293b"), background:sel?"#2E6DB418":"#0D1B30", cursor:"pointer", display:"flex", alignItems:"center", gap:10, transition:"all 0.15s" }}>
+                    <span style={{ width:18, height:18, borderRadius:4, border:"1px solid "+(sel?"#2E6DB4":"#374151"), background:sel?"#2E6DB4":"transparent", display:"flex", alignItems:"center", justifyContent:"center", fontSize:11, color:"#fff", flexShrink:0 }}>{sel?"✓":""}</span>
+                    <span style={{ fontSize:13, color:sel?"#60A5FA":"#94a3b8" }}>{p.label}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <ProposalInput label="Additional Context" hint="Specific info about their environment, tech stack, regulatory requirements, or strategic priorities">
+              <textarea value={form.challengeContext} onChange={e=>set("challengeContext",e.target.value)}
+                placeholder="e.g. Currently using Taleo, strong compliance requirements, pivoting to proactive sourcing…"
+                style={{ width:"100%", background:"#1e293b", border:"1px solid #334155", borderRadius:8, color:"#f8fafc", padding:"10px 14px", fontSize:13, fontFamily:"inherit", outline:"none", minHeight:100, resize:"vertical", lineHeight:1.6 }}
+              />
+            </ProposalInput>
+          </div>
+        )}
+
+        {/* STEP 4: ROI */}
+        {step === 4 && (
+          <div>
+            <h2 style={{ fontSize:22, fontWeight:700, color:"#f8fafc", margin:"0 0 6px" }}>ROI Parameters</h2>
+            <p style={{ color:"#475569", fontSize:13, margin:"0 0 24px" }}>Conservative industry benchmarks are pre-filled. Adjust to match the client's context.</p>
+            <div style={{ background:"#0D1B30", border:"1px solid #2E6DB444", borderRadius:12, padding:"20px 24px", marginBottom:28, display:"flex", gap:24, alignItems:"center", flexWrap:"wrap" }}>
+              <div>
+                <div style={{ fontSize:11, color:"#475569", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:4 }}>Estimated Annual Impact</div>
+                <div style={{ fontSize:28, fontWeight:800, color:"#60A5FA" }}>{fmtM(roi.totalLow)} – {fmtM(roi.totalHigh)}</div>
+              </div>
+              <div style={{ borderLeft:"1px solid #1e293b", paddingLeft:24, display:"flex", gap:20, flexWrap:"wrap" }}>
+                <div><div style={{ fontSize:10, color:"#475569", marginBottom:2 }}>Mobility shift</div><div style={{ fontSize:15, fontWeight:700, color:"#94a3b8" }}>{roi.mobilityLift.toLocaleString()} hires</div></div>
+                <div><div style={{ fontSize:10, color:"#475569", marginBottom:2 }}>Vacancy days avoided</div><div style={{ fontSize:15, fontWeight:700, color:"#94a3b8" }}>{roi.ttfDays.toLocaleString()}</div></div>
+              </div>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:20 }}>
+              <ProposalInput label="Time-to-Fill Reduction %" hint="Applied across annual hires"><ProposalNumberInput value={form.timeToFillReduction} onChange={v=>set("timeToFillReduction",v)} suffix="%" placeholder="18"/></ProposalInput>
+              <ProposalInput label="Recruiter Productivity Gain %"><ProposalNumberInput value={form.recruiterProductivity} onChange={v=>set("recruiterProductivity",v)} suffix="%" placeholder="15"/></ProposalInput>
+              <ProposalInput label="Internal Mobility — Current %"><ProposalNumberInput value={form.internalMobilityCurrent} onChange={v=>set("internalMobilityCurrent",v)} suffix="%" placeholder="30"/></ProposalInput>
+              <ProposalInput label="Internal Mobility — Target %"><ProposalNumberInput value={form.internalMobilityTarget} onChange={v=>set("internalMobilityTarget",v)} suffix="%" placeholder="40"/></ProposalInput>
+              <ProposalInput label="Job Board Spend Reduction %"><ProposalNumberInput value={form.jobBoardReduction} onChange={v=>set("jobBoardReduction",v)} suffix="%" placeholder="20"/></ProposalInput>
+              <ProposalInput label="Avg. Cost Per External Hire" hint="For internal mobility ROI calc"><ProposalNumberInput value={form.avgCostPerHire} onChange={v=>set("avgCostPerHire",v)} prefix="$" placeholder="4500"/></ProposalInput>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 5: Generate */}
+        {step === 5 && (
+          <div>
+            <h2 style={{ fontSize:22, fontWeight:700, color:"#f8fafc", margin:"0 0 6px" }}>Generate & Export</h2>
+            {!generatedContent && <p style={{ color:"#475569", fontSize:13, margin:"0 0 28px" }}>Review your inputs, then generate the AI-written narrative and download the PPTX.</p>}
+            {!generatedContent && (
+              <div style={{ background:"#0D1B30", border:"1px solid #1F2937", borderRadius:12, padding:"24px", marginBottom:28 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:16, fontSize:13 }}>
+                  {[["Client",form.clientName],["Industry",form.industry],["Prepared by",form.preparedBy],
+                    ["Products",PROPOSAL_PRODUCTS.filter(p=>form.products.includes(p.id)).map(p=>p.label).join(", ")],
+                    ["Annual hires",Number(form.annualHires).toLocaleString()],["Recruiters",form.recruiterCount],
+                    ["Challenges",form.painPoints.length+" selected"],["Est. impact",fmtM(roi.totalLow)+"–"+fmtM(roi.totalHigh)],
+                    ["TTF reduction",form.timeToFillReduction+"%"],
+                  ].map(([k,v])=>(
+                    <div key={k}><div style={{ fontSize:10, color:"#475569", fontWeight:600, letterSpacing:"0.08em", textTransform:"uppercase", marginBottom:3 }}>{k}</div><div style={{ color:"#f8fafc", fontWeight:500 }}>{v||"—"}</div></div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {generatedContent && (
+              <div style={{ background:"#0D1B30", border:"1px solid #22c55e44", borderRadius:12, padding:"24px", marginBottom:24 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+                  <span style={{ fontSize:20 }}>✅</span>
+                  <span style={{ fontSize:15, fontWeight:700, color:"#22c55e" }}>Content generated successfully</span>
+                </div>
+                <div style={{ fontSize:13, color:"#64748b", lineHeight:1.7, maxHeight:160, overflowY:"auto" }}>
+                  <strong style={{ color:"#94a3b8" }}>Executive Summary: </strong>{generatedContent.execSummary}
+                </div>
+                <div style={{ marginTop:14, padding:"10px 14px", background:"#060D18", borderRadius:8, fontSize:12, color:"#475569" }}>
+                  8 slides ready — Cover · Executive Summary · Client Context · Financial Impact · Proposed Solutions · Avature Advantage ×2 · Thank You
+                </div>
+              </div>
+            )}
+            {genError && <div style={{ background:"#1a0a0a", border:"1px solid #f8717144", borderRadius:8, padding:"12px 16px", color:"#f87171", fontSize:13, marginBottom:20 }}>⚠ {genError}</div>}
+            <div style={{ display:"flex", gap:12 }}>
+              {!generatedContent ? (
+                <button onClick={handleGenerate} disabled={generating}
+                  style={{ padding:"12px 28px", borderRadius:8, border:"none", background:generating?"#1e293b":"linear-gradient(135deg,#2E6DB4,#1A6B7C)", color:"#fff", fontSize:14, fontWeight:700, cursor:generating?"not-allowed":"pointer", fontFamily:"inherit", opacity:generating?0.7:1 }}>
+                  {generating ? "⟳ Generating narrative…" : "✨ Generate with AI"}
+                </button>
+              ) : (
+                <>
+                  <button onClick={handleDownloadPPTX} disabled={downloading}
+                    style={{ padding:"12px 28px", borderRadius:8, border:"none", background:downloading?"#1e293b":"linear-gradient(135deg,#2E6DB4,#1A6B7C)", color:"#fff", fontSize:14, fontWeight:700, cursor:downloading?"not-allowed":"pointer", fontFamily:"inherit" }}>
+                    {downloading ? "Building PPTX…" : "⬇ Download PPTX"}
+                  </button>
+                  <button onClick={()=>{setGeneratedContent(null);setGenError(null);}}
+                    style={{ padding:"12px 20px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+                    Regenerate
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Navigation */}
+        <div style={{ display:"flex", justifyContent:"space-between", marginTop:48, paddingTop:24, borderTop:"1px solid #1e293b" }}>
+          <button onClick={()=>step>0?setStep(step-1):onBack()}
+            style={{ padding:"10px 20px", borderRadius:8, border:"1px solid #334155", background:"transparent", color:"#64748b", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+            ← {step===0?"Back to Tools":"Previous"}
+          </button>
+          {step < 5 && (
+            <button onClick={()=>setStep(step+1)} disabled={!canNext}
+              style={{ padding:"10px 24px", borderRadius:8, border:"none", background:canNext?"linear-gradient(135deg,#2E6DB4,#1A6B7C)":"#1e293b", color:canNext?"#fff":"#374151", fontSize:13, fontWeight:700, cursor:canNext?"pointer":"not-allowed", fontFamily:"inherit" }}>
+              Next →
+            </button>
           )}
         </div>
       </div>
@@ -1724,6 +2268,7 @@ export default function TMCalculator() {
       onSelectTool={id => {
         if (id === "calculator") { setLoadedPlanId(null); setScreen("calculator"); }
         else if (id === "ai-maturity") { setLoadedAssessment(null); setScreen("ai-maturity"); }
+        else if (id === "proposal") { setScreen("proposal"); }
       }}
       onSignOut={() => { setLoggedIn(false); setScreen("dashboard"); }}
       onLoadPlan={handleLoadPlan}
@@ -1735,6 +2280,9 @@ export default function TMCalculator() {
       onBack={() => { setLoadedAssessment(null); setScreen("dashboard"); }}
       initialData={loadedAssessment}
     />
+  );
+  if (screen === "proposal") return (
+    <BusinessProposalWizard onBack={() => setScreen("dashboard")} />
   );
 
   const currSym = CURRENCIES.find(c => c.code === currency)?.symbol || "$";
