@@ -1362,20 +1362,20 @@ function BusinessProposalWizard({ onBack }) {
       const addSlide = () => {
         const sl = pptx.addSlide();
         sl.background = { color: C.navy };
-        sl.addShape(pptx.ShapeType.rect, { x:0, y:0, w:"100%", h:0.06, fill:{color:C.teal} });
+        sl.addShape("rect", { x:0, y:0, w:10, h:0.06, fill:{color:C.teal} });
         return sl;
       };
 
       // SLIDE 1 — Cover
       const s1 = pptx.addSlide();
       s1.background = { color: C.dark };
-      s1.addShape(pptx.ShapeType.rect, { x:0, y:0, w:"100%", h:3.5, fill:{color:C.navy} });
-      s1.addShape(pptx.ShapeType.rect, { x:0, y:0, w:"100%", h:0.06, fill:{color:C.teal} });
+      s1.addShape("rect", { x:0, y:0, w:10, h:3.5, fill:{color:C.navy} });
+      s1.addShape("rect", { x:0, y:0, w:10, h:0.06, fill:{color:C.teal} });
       s1.addText("BUSINESS CASE", { x:0.6, y:0.55, w:9, h:0.4, fontSize:11, bold:true, color:C.teal, fontFace:F, charSpacing:3 });
       s1.addText(client, { x:0.6, y:1.05, w:9, h:1.2, fontSize:46, bold:true, color:C.white, fontFace:F });
-      s1.addShape(pptx.ShapeType.rect, { x:0.6, y:2.45, w:1.4, h:0.05, fill:{color:C.teal} });
+      s1.addShape("rect", { x:0.6, y:2.45, w:1.4, h:0.05, fill:{color:C.teal} });
       s1.addText(selProds.map(p=>p.label).join(" · "), { x:0.6, y:2.6, w:9, h:0.5, fontSize:15, color:C.offWhite, fontFace:F });
-      s1.addShape(pptx.ShapeType.rect, { x:0, y:3.5, w:"100%", h:4.0, fill:{color:C.dark} });
+      s1.addShape("rect", { x:0, y:3.5, w:10, h:4.0, fill:{color:C.dark} });
       s1.addText("Prepared by", { x:0.6, y:4.0, w:5, h:0.3, fontSize:11, color:C.muted, fontFace:F });
       s1.addText(form.preparedBy || "Avature Professional Services", { x:0.6, y:4.35, w:6, h:0.45, fontSize:17, bold:true, color:C.white, fontFace:F });
       if (form.industry) s1.addText(form.industry, { x:0.6, y:4.9, w:5, h:0.35, fontSize:13, color:C.muted, fontFace:F });
@@ -1383,12 +1383,12 @@ function BusinessProposalWizard({ onBack }) {
       // SLIDE 2 — Executive Summary
       const s2 = addSlide();
       s2.addText("Executive Summary", { x:0.5, y:0.22, w:9, h:0.6, fontSize:26, bold:true, color:C.white, fontFace:F });
-      s2.addShape(pptx.ShapeType.rect, { x:0.5, y:0.9, w:5.8, h:4.6, fill:{color:C.dark}, line:{color:C.teal+"44",width:1}, rectRadius:0.1 });
+      s2.addShape("rect", { x:0.5, y:0.9, w:5.8, h:4.6, fill:{color:C.dark}, line:{color:C.teal,width:1} });
       s2.addText(gc?.execSummary || "", { x:0.72, y:1.08, w:5.36, h:3.5, fontSize:13, color:C.offWhite, fontFace:F, valign:"top", wrap:true });
-      s2.addShape(pptx.ShapeType.rect, { x:6.5, y:0.9, w:3.2, h:1.9, fill:{color:C.teal}, rectRadius:0.1 });
+      s2.addShape("rect", { x:6.5, y:0.9, w:3.2, h:1.9, fill:{color:C.teal} });
       s2.addText("Potential Annual\nCost Avoidance", { x:6.6, y:1.0, w:3.0, h:0.55, fontSize:11, bold:true, color:C.white, fontFace:F, align:"center" });
       s2.addText(fmtM(roi.totalLow)+"–"+fmtM(roi.totalHigh), { x:6.5, y:1.55, w:3.2, h:1.0, fontSize:30, bold:true, color:C.white, fontFace:F, align:"center" });
-      s2.addShape(pptx.ShapeType.rect, { x:6.5, y:2.95, w:3.2, h:2.55, fill:{color:C.dark}, line:{color:C.blue+"44",width:1}, rectRadius:0.1 });
+      s2.addShape("rect", { x:6.5, y:2.95, w:3.2, h:2.55, fill:{color:C.dark}, line:{color:C.blue,width:1} });
       s2.addText(gc?.execROI || "", { x:6.65, y:3.1, w:2.9, h:2.25, fontSize:11.5, color:C.offWhite, fontFace:F, valign:"top", wrap:true });
 
       // SLIDE 3 — Client Context
@@ -1406,7 +1406,7 @@ function BusinessProposalWizard({ onBack }) {
       stats.forEach((s,i) => {
         const col=i%3; const row=Math.floor(i/3);
         const x=0.5+col*3.3; const y=2.05+row*1.65;
-        s3.addShape(pptx.ShapeType.rect, {x,y,w:3.1,h:1.5,fill:{color:C.dark},line:{color:C.teal+"44",width:1},rectRadius:0.08});
+        s3.addShape("rect", {x,y,w:3.1,h:1.5,fill:{color:C.dark},line:{color:C.teal,width:1}});
         s3.addText(s.v, {x,y:y+0.1,w:3.1,h:0.75,fontSize:30,bold:true,color:C.teal,fontFace:F,align:"center"});
         s3.addText(s.l, {x,y:y+0.9,w:3.1,h:0.4,fontSize:11,color:C.muted,fontFace:F,align:"center"});
       });
@@ -1423,12 +1423,12 @@ function BusinessProposalWizard({ onBack }) {
       roiItems.forEach((item,i) => {
         const col=i%2; const row=Math.floor(i/2);
         const x=0.4+col*5.1; const y=0.98+row*2.45;
-        s4.addShape(pptx.ShapeType.rect, {x,y,w:4.85,h:2.3,fill:{color:C.dark},line:{color:C.blue+"44",width:1},rectRadius:0.1});
+        s4.addShape("rect", {x,y,w:4.85,h:2.3,fill:{color:C.dark},line:{color:C.blue,width:1}});
         s4.addText(item.n, {x:x+0.15,y:y+0.12,w:0.5,h:0.45,fontSize:20,bold:true,color:C.teal,fontFace:F});
         s4.addText(item.title, {x:x+0.62,y:y+0.14,w:4.1,h:0.45,fontSize:12,bold:true,color:C.white,fontFace:F,valign:"middle"});
         s4.addText(item.text, {x:x+0.15,y:y+0.68,w:4.55,h:1.5,fontSize:11,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
       });
-      s4.addShape(pptx.ShapeType.rect, {x:0.4,y:5.7,w:9.5,h:0.7,fill:{color:C.teal},rectRadius:0.08});
+      s4.addShape("rect", {x:0.4,y:5.7,w:9.5,h:0.7,fill:{color:C.teal}});
       s4.addText(`Estimated Total Annual Impact: ${fmtM(roi.totalLow)} – ${fmtM(roi.totalHigh)}`, {x:0.4,y:5.7,w:9.5,h:0.7,fontSize:16,bold:true,color:C.white,fontFace:F,align:"center",valign:"middle"});
 
       // SLIDE 5 — Proposed Solutions
@@ -1437,8 +1437,8 @@ function BusinessProposalWizard({ onBack }) {
       const colW = 10.0 / selProds.length;
       selProds.forEach((p,i) => {
         const x=0.35+i*colW;
-        s5.addShape(pptx.ShapeType.rect, {x,y:0.92,w:colW-0.2,h:5.6,fill:{color:C.dark},line:{color:C.teal+"44",width:1},rectRadius:0.1});
-        s5.addShape(pptx.ShapeType.rect, {x:x+0.15,y:1.06,w:colW-0.5,h:0.05,fill:{color:C.teal}});
+        s5.addShape("rect", {x,y:0.92,w:colW-0.2,h:5.6,fill:{color:C.dark},line:{color:C.teal,width:1}});
+        s5.addShape("rect", {x:x+0.15,y:1.06,w:colW-0.5,h:0.05,fill:{color:C.teal}});
         s5.addText(p.icon, {x:x+0.15,y:1.2,w:0.75,h:0.6,fontSize:24,align:"center"});
         s5.addText(p.label, {x:x+0.88,y:1.28,w:colW-1.15,h:0.55,fontSize:15,bold:true,color:C.white,fontFace:F,valign:"middle"});
         s5.addText(PRODUCT_DETAILS[p.id]||p.desc, {x:x+0.2,y:2.0,w:colW-0.55,h:4.3,fontSize:11,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
@@ -1450,9 +1450,9 @@ function BusinessProposalWizard({ onBack }) {
       ADVANTAGES.slice(0,4).forEach((adv,i) => {
         const col=i%2; const row=Math.floor(i/2);
         const x=0.4+col*5.1; const y=0.92+row*2.75;
-        s6.addShape(pptx.ShapeType.rect, {x,y,w:4.85,h:2.6,fill:{color:C.dark},line:{color:C.blue+"44",width:1},rectRadius:0.1});
+        s6.addShape("rect", {x,y,w:4.85,h:2.6,fill:{color:C.dark},line:{color:C.blue,width:1}});
         s6.addText(adv.n+". "+adv.title, {x:x+0.15,y:y+0.12,w:4.55,h:0.5,fontSize:13,bold:true,color:C.white,fontFace:F});
-        s6.addShape(pptx.ShapeType.rect, {x:x+0.15,y:y+0.65,w:4.35,h:0.03,fill:{color:C.teal+"66"}});
+        s6.addShape("rect", {x:x+0.15,y:y+0.65,w:4.35,h:0.03,fill:{color:C.teal}});
         s6.addText(adv.bullets.slice(0,4).map(b=>"• "+b).join("\n"), {x:x+0.15,y:y+0.75,w:4.55,h:1.72,fontSize:10.5,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
       });
 
@@ -1461,22 +1461,22 @@ function BusinessProposalWizard({ onBack }) {
       s7.addText("The Avature Advantage (cont.)", { x:0.5, y:0.22, w:9, h:0.6, fontSize:23, bold:true, color:C.white, fontFace:F });
       ADVANTAGES.slice(4).forEach((adv,i) => {
         const x=0.4+i*3.45;
-        s7.addShape(pptx.ShapeType.rect, {x,y:0.92,w:3.25,h:4.65,fill:{color:C.dark},line:{color:C.blue+"44",width:1},rectRadius:0.1});
+        s7.addShape("rect", {x,y:0.92,w:3.25,h:4.65,fill:{color:C.dark},line:{color:C.blue,width:1}});
         s7.addText(adv.n+". "+adv.title, {x:x+0.15,y:0.97+0.05,w:2.95,h:0.55,fontSize:12,bold:true,color:C.white,fontFace:F,wrap:true});
-        s7.addShape(pptx.ShapeType.rect, {x:x+0.15,y:1.6,w:2.8,h:0.03,fill:{color:C.teal+"66"}});
+        s7.addShape("rect", {x:x+0.15,y:1.6,w:2.8,h:0.03,fill:{color:C.teal}});
         s7.addText(adv.bullets.map(b=>"• "+b).join("\n"), {x:x+0.15,y:1.7,w:2.95,h:3.74,fontSize:10,color:C.offWhite,fontFace:F,valign:"top",wrap:true});
       });
-      s7.addShape(pptx.ShapeType.rect, {x:0.4,y:5.7,w:9.5,h:0.7,fill:{color:C.dark},line:{color:C.teal+"33",width:1},rectRadius:0.08});
+      s7.addShape("rect", {x:0.4,y:5.7,w:9.5,h:0.7,fill:{color:C.dark},line:{color:C.teal,width:1}});
       s7.addText(gc?.partnershipClose||"", {x:0.55,y:5.7,w:9.2,h:0.7,fontSize:11,color:C.offWhite,fontFace:F,valign:"middle",wrap:true});
 
       // SLIDE 8 — Thank You
       const s8 = pptx.addSlide();
       s8.background = { color:C.dark };
-      s8.addShape(pptx.ShapeType.rect, {x:0,y:0,w:"100%",h:0.06,fill:{color:C.teal}});
-      s8.addShape(pptx.ShapeType.rect, {x:0,y:0,w:"100%",h:3.9,fill:{color:C.navy}});
+      s8.addShape("rect", {x:0,y:0,w:10,h:0.06,fill:{color:C.teal}});
+      s8.addShape("rect", {x:0,y:0,w:10,h:3.9,fill:{color:C.navy}});
       s8.addText("Thank You", {x:0.5,y:1.2,w:9.5,h:1.3,fontSize:54,bold:true,color:C.white,fontFace:F,align:"center"});
       s8.addText("Avature Professional Services", {x:0.5,y:2.65,w:9.5,h:0.5,fontSize:16,color:C.teal,fontFace:F,align:"center",bold:true});
-      s8.addShape(pptx.ShapeType.rect, {x:0,y:3.9,w:"100%",h:3.6,fill:{color:C.dark}});
+      s8.addShape("rect", {x:0,y:3.9,w:10,h:3.6,fill:{color:C.dark}});
       s8.addText(form.preparedBy||"Avature Professional Services", {x:0.5,y:4.55,w:9.5,h:0.5,fontSize:16,bold:true,color:C.white,fontFace:F,align:"center"});
       s8.addText("avature.net", {x:0.5,y:5.2,w:9.5,h:0.4,fontSize:13,color:C.muted,fontFace:F,align:"center"});
       s8.addText("CONFIDENTIAL", {x:0.5,y:6.5,w:9.5,h:0.3,fontSize:10,color:C.muted,fontFace:F,align:"center",charSpacing:2});
