@@ -380,7 +380,11 @@ function aiAvg(arr) {
   return valid.length ? valid.reduce((a,b)=>a+b,0)/valid.length : null;
 }
 
-function AIMaturityTool({ onBack, initialData }) {
+const AI_INTEL_IDS = ["Q1","Q2","Q5","Q6","Q11","Q12","Q16","Q18","Q19","Q20","Q23"];
+const AI_AUTO_IDS  = ["Q3","Q4","Q8","Q9","Q13","Q17","Q21","Q24"];
+const AI_GOV_IDS   = ["Q2","Q10","Q14","Q15","Q22","Q24","Q25"];
+
+function AIMaturityTool({ onBack, initialData, guestMode }) {
   const [scores, setScores] = useState(initialData?.scores || {});
   const [view, setView] = useState("assessment");
   const [currentStage, setCurrentStage] = useState("ATTRACT");
@@ -391,6 +395,30 @@ function AIMaturityTool({ onBack, initialData }) {
   const [saving, setSaving] = useState(false);
   const [savedToast, setSavedToast] = useState(null);
   const [loadedId, setLoadedId] = useState(initialData?.id || null);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleGuestSubmit = async () => {
+    setSaving(true);
+    try {
+      const stageScoresSnap = {};
+      for (const [stage, [s,e]] of Object.entries(AI_STAGE_RANGES)) {
+        stageScoresSnap[stage] = aiAvg(AI_QUESTIONS.slice(s,e+1).map(q => scores[q.id] ?? null));
+      }
+      const overallSnap = aiAvg(AI_QUESTIONS.map(q => scores[q.id] ?? null));
+      await db.saveAssessment({
+        client_name: clientName || null,
+        client_org: clientOrg || null,
+        scores,
+        overall_score: overallSnap !== null ? Math.round(overallSnap * 100) / 100 : null,
+        stage_scores: stageScoresSnap,
+      });
+      setSubmitted(true);
+    } catch(e) {
+      alert("Submit failed: " + e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleSaveAssessment = async () => {
     setSaving(true);
@@ -434,12 +462,9 @@ function AIMaturityTool({ onBack, initialData }) {
   }, [scores]);
 
   const overall = useMemo(() => aiAvg(AI_QUESTIONS.map(q => scores[q.id] ?? null)), [scores]);
-  const intelIds = ["Q1","Q2","Q5","Q6","Q11","Q12","Q16","Q18","Q19","Q20","Q23"];
-  const autoIds  = ["Q3","Q4","Q8","Q9","Q13","Q17","Q21","Q24"];
-  const govIds   = ["Q2","Q10","Q14","Q15","Q22","Q24","Q25"];
-  const intelScore = useMemo(() => aiAvg(intelIds.map(id => scores[id] ?? null)), [scores]);
-  const autoScore  = useMemo(() => aiAvg(autoIds.map(id => scores[id] ?? null)), [scores]);
-  const govScore   = useMemo(() => aiAvg(govIds.map(id => scores[id] ?? null)), [scores]);
+  const intelScore = useMemo(() => aiAvg(AI_INTEL_IDS.map(id => scores[id] ?? null)), [scores]);
+  const autoScore  = useMemo(() => aiAvg(AI_AUTO_IDS.map(id => scores[id] ?? null)), [scores]);
+  const govScore   = useMemo(() => aiAvg(AI_GOV_IDS.map(id => scores[id] ?? null)), [scores]);
 
   const stageQs = AI_QUESTIONS.filter(q => q.stage === currentStage);
   const stageIdx = AI_STAGES.indexOf(currentStage);
@@ -453,6 +478,26 @@ function AIMaturityTool({ onBack, initialData }) {
     window.location.href = "mailto:" + encodeURIComponent(shareEmail) + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
     setShowShareModal(false);
   };
+
+  // Guest mode: thank you screen after submit
+  if (guestMode && submitted) {
+    return (
+      <div style={{ fontFamily:"'DM Sans','Segoe UI',sans-serif", background:"#0b1120", minHeight:"100vh", color:"#e2e8f0", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <div style={{ textAlign:"center", maxWidth:480, padding:"40px 24px" }}>
+          <div style={{ fontSize:56, marginBottom:24 }}>✅</div>
+          <h1 style={{ fontSize:26, fontWeight:700, color:"#f8fafc", margin:"0 0 12px" }}>Thank you{clientName ? ", " + clientName : ""}!</h1>
+          <p style={{ fontSize:15, color:"#64748b", lineHeight:1.7, margin:"0 0 8px" }}>
+            Your AI Maturity Assessment has been submitted successfully.
+          </p>
+          {clientOrg && <p style={{ fontSize:13, color:"#475569" }}>Submitted on behalf of <strong style={{ color:"#94a3b8" }}>{clientOrg}</strong></p>}
+          <p style={{ fontSize:13, color:"#334155", marginTop:24 }}>The Avature Professional Services team will be in touch with your results and recommendations.</p>
+          <div style={{ marginTop:32, padding:"16px 20px", background:"#0f172a", border:"1px solid #1e293b", borderRadius:12 }}>
+            <img src={LOGO_URI} alt="Avature" style={{ height:18, filter:"brightness(0) invert(1)", opacity:0.5 }}/>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily:"'DM Sans','Segoe UI',sans-serif", background:"#0b1120", minHeight:"100vh", color:"#e2e8f0" }}>
@@ -499,8 +544,12 @@ function AIMaturityTool({ onBack, initialData }) {
         <div style={{ display:"flex", alignItems:"center", gap:16 }}>
           <img src={LOGO_URI} alt="Avature" style={{ height:20, filter:"brightness(0) invert(1)" }}/>
           <div style={{ width:1, height:18, background:"#334155" }}/>
-          <button onClick={onBack} style={{ background:"none", border:"none", padding:0, cursor:"pointer", color:"#475569", fontSize:13, fontFamily:"inherit", transition:"color 0.2s" }} onMouseOver={e=>e.currentTarget.style.color="#94a3b8"} onMouseOut={e=>e.currentTarget.style.color="#475569"}>Tools</button>
-          <span style={{ color:"#334155", fontSize:13 }}>›</span>
+          {!guestMode && (
+            <>
+              <button onClick={onBack} style={{ background:"none", border:"none", padding:0, cursor:"pointer", color:"#475569", fontSize:13, fontFamily:"inherit", transition:"color 0.2s" }} onMouseOver={e=>e.currentTarget.style.color="#94a3b8"} onMouseOut={e=>e.currentTarget.style.color="#475569"}>Tools</button>
+              <span style={{ color:"#334155", fontSize:13 }}>›</span>
+            </>
+          )}
           <span style={{ fontSize:13, color:"#94a3b8", fontWeight:500 }}>AI Maturity Assessment</span>
           {clientOrg && <span style={{ fontSize:12, color:"#6366f1", fontWeight:600, background:"#1e1b4b", padding:"2px 10px", borderRadius:20, border:"1px solid #6366f133" }}>{clientOrg}</span>}
           <div style={{ fontSize:12, color:"#475569", borderLeft:"1px solid #1e293b", paddingLeft:16 }}>
@@ -509,25 +558,39 @@ function AIMaturityTool({ onBack, initialData }) {
           </div>
         </div>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-          <div style={{ position:"relative" }}>
-            <button onClick={handleSaveAssessment} disabled={saving || answered === 0}
-              style={{ padding:"7px 16px", borderRadius:6, border:"1px solid", borderColor: answered === 0 ? "#1e293b" : "#334155",
-                background:"transparent", color: answered === 0 ? "#334155" : "#94a3b8", fontSize:12, fontWeight:600,
+          {guestMode ? (
+            <button onClick={handleGuestSubmit} disabled={saving || answered === 0}
+              style={{ padding:"8px 20px", borderRadius:6, border:"none",
+                background: answered === 0 ? "#1e293b" : "linear-gradient(135deg,#6366f1,#4f46e5)",
+                color: answered === 0 ? "#334155" : "#fff", fontSize:13, fontWeight:600,
                 cursor: answered === 0 ? "not-allowed" : "pointer", fontFamily:"inherit",
-              }}
-              onMouseOver={e=>{ if(answered>0 && !saving){ e.currentTarget.style.borderColor="#6366f1"; e.currentTarget.style.color="#6366f1"; }}}
-              onMouseOut={e=>{ e.currentTarget.style.borderColor= answered===0?"#1e293b":"#334155"; e.currentTarget.style.color= answered===0?"#334155":"#94a3b8"; }}>
-              {saving ? "Saving…" : "☁ Save"}
+                boxShadow: answered > 0 ? "0 2px 12px #6366f144" : "none",
+              }}>
+              {saving ? "Submitting…" : answered === 0 ? "Answer questions to submit" : `Submit Assessment (${answered}/${total})`}
             </button>
-            {savedToast && (
-              <div style={{ position:"absolute", top:"calc(100% + 8px)", right:0, background:"#14532D", border:"1px solid #166534", color:"#4ADE80", borderRadius:6, padding:"6px 12px", fontSize:12, fontWeight:600, whiteSpace:"nowrap", zIndex:99 }}>
-                {savedToast}
+          ) : (
+            <>
+              <div style={{ position:"relative" }}>
+                <button onClick={handleSaveAssessment} disabled={saving || answered === 0}
+                  style={{ padding:"7px 16px", borderRadius:6, border:"1px solid", borderColor: answered === 0 ? "#1e293b" : "#334155",
+                    background:"transparent", color: answered === 0 ? "#334155" : "#94a3b8", fontSize:12, fontWeight:600,
+                    cursor: answered === 0 ? "not-allowed" : "pointer", fontFamily:"inherit",
+                  }}
+                  onMouseOver={e=>{ if(answered>0 && !saving){ e.currentTarget.style.borderColor="#6366f1"; e.currentTarget.style.color="#6366f1"; }}}
+                  onMouseOut={e=>{ e.currentTarget.style.borderColor= answered===0?"#1e293b":"#334155"; e.currentTarget.style.color= answered===0?"#334155":"#94a3b8"; }}>
+                  {saving ? "Saving…" : "☁ Save"}
+                </button>
+                {savedToast && (
+                  <div style={{ position:"absolute", top:"calc(100% + 8px)", right:0, background:"#14532D", border:"1px solid #166534", color:"#4ADE80", borderRadius:6, padding:"6px 12px", fontSize:12, fontWeight:600, whiteSpace:"nowrap", zIndex:99 }}>
+                    {savedToast}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          <button onClick={()=>setShowShareModal(true)} style={{ padding:"7px 16px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#94a3b8", fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
-            ✉ Share
-          </button>
+              <button onClick={()=>setShowShareModal(true)} style={{ padding:"7px 16px", borderRadius:6, border:"1px solid #334155", background:"transparent", color:"#94a3b8", fontSize:12, fontWeight:600, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+                ✉ Share
+              </button>
+            </>
+          )}
           {["assessment","dashboard"].map(v => (
             <button key={v} onClick={() => setView(v)} style={{ padding:"7px 16px", borderRadius:6, border:"1px solid", borderColor: view===v ? "#6366f1" : "#1e293b", background: view===v ? "#6366f1" : "transparent", color: view===v ? "#fff" : "#64748b", fontSize:12, fontWeight:600, cursor:"pointer" }}>
               {v === "assessment" ? "Assessment" : "Dashboard"}
@@ -1523,6 +1586,40 @@ export default function TMCalculator() {
     document.head.appendChild(link);
     document.title = "Avature T&M Calculator";
   }, []);
+
+  // ── Parse URL params on first load ──────────────────────────────────────────
+  const urlParams = useMemo(() => {
+    const p = new URLSearchParams(window.location.search);
+    return {
+      tool:   p.get("tool"),
+      client: p.get("client") || "",
+      org:    p.get("org") || "",
+      scores: p.get("s") || "",
+    };
+  }, []);
+
+  const isGuestAssessment = urlParams.tool === "ai-maturity";
+
+  // Guest mode — client arrived via email link, bypass login entirely
+  if (isGuestAssessment) {
+    const preloadedScores = {};
+    if (urlParams.scores) {
+      urlParams.scores.split(",").forEach((val, i) => {
+        if (val !== "" && AI_QUESTIONS[i]) preloadedScores[AI_QUESTIONS[i].id] = Number(val);
+      });
+    }
+    return (
+      <AIMaturityTool
+        guestMode
+        initialData={{
+          client_name: urlParams.client,
+          client_org: urlParams.org,
+          scores: preloadedScores,
+        }}
+        onBack={null}
+      />
+    );
+  }
 
   if (!loggedIn) return <LoginPage onLogin={() => { setLoggedIn(true); setScreen("dashboard"); }} />;
   if (screen === "dashboard") return (
