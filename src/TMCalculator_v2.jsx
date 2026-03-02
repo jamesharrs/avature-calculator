@@ -1216,6 +1216,7 @@ function BusinessProposalWizard({ onBack }) {
   const [generatedContent, setGeneratedContent] = useState(null);
   const [genError, setGenError] = useState(null);
   const [downloading, setDownloading] = useState(false);
+  const [pptxError, setPptxError] = useState(null);
 
   const [form, setForm] = useState({
     clientName:"", industry:"", preparedBy:"",
@@ -1341,6 +1342,7 @@ function BusinessProposalWizard({ onBack }) {
 
   const handleDownloadPPTX = async () => {
     setDownloading(true);
+    setPptxError(null);
     try {
       await new Promise((res,rej) => {
         if (window.PptxGenJS) return res();
@@ -1486,8 +1488,9 @@ function BusinessProposalWizard({ onBack }) {
       const safeClient = client.replace(/[^a-zA-Z0-9_-]/g,"_");
       await pptx.writeFile({ fileName:"Avature_Business_Case_"+safeClient+".pptx" });
     } catch(e) {
-      console.error("PPTX error:", e);
-      alert("Download failed: " + (e && e.message ? e.message : String(e)));
+      console.error("PPTX build error:", e);
+      const msg = (e && e.message ? e.message : String(e)) + (e && e.stack ? "\n\nStack: " + e.stack.split("\n").slice(0,4).join(" | ") : "");
+      setPptxError(msg);
     }
     finally { setDownloading(false); }
   };
@@ -1680,6 +1683,13 @@ function BusinessProposalWizard({ onBack }) {
               </div>
             )}
             {genError && <div style={{ background:"#1a0a0a", border:"1px solid #f8717144", borderRadius:8, padding:"12px 16px", color:"#f87171", fontSize:13, marginBottom:20 }}>⚠ {genError}</div>}
+            {pptxError && (
+              <div style={{ background:"#1a0a0a", border:"1px solid #f87171", borderRadius:8, padding:"16px", marginBottom:20 }}>
+                <div style={{ color:"#f87171", fontSize:13, fontWeight:700, marginBottom:8 }}>⚠ PPTX Build Error — copy this when reporting:</div>
+                <pre style={{ color:"#fca5a5", fontSize:11, margin:0, whiteSpace:"pre-wrap", wordBreak:"break-all", maxHeight:200, overflowY:"auto", fontFamily:"monospace", lineHeight:1.5 }}>{pptxError}</pre>
+                <button onClick={() => { navigator.clipboard.writeText(pptxError); }} style={{ marginTop:10, padding:"5px 12px", background:"#374151", border:"1px solid #4b5563", borderRadius:6, color:"#d1d5db", fontSize:11, cursor:"pointer", fontFamily:"inherit" }}>Copy error</button>
+              </div>
+            )}
             <div style={{ display:"flex", gap:12 }}>
               {!generatedContent ? (
                 <button onClick={handleGenerate} disabled={generating}
