@@ -182,11 +182,11 @@ function exportProposal(months, computed, phases, clientName, importantNotice, c
 
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" />
 <title>Avature — Implementation Proposal${clientName ? " · "+clientName : ""}</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Source+Sans+3:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Source+Sans+3:wght@300;400;600;700&family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
 @page{size:A4 portrait;margin:0}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Source Sans 3',sans-serif;background:#E5E7EB;color:#1A1A2E;font-size:13.5px;line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Work Sans','Source Sans 3',sans-serif;background:#E5E7EB;color:#1A1A2E;font-size:13.5px;line-height:1.6;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 /* Each pg div = exactly one A4 page */
 .pg{width:210mm;height:297mm;background:white;margin:0 auto 12px;display:flex;flex-direction:column;page-break-after:always;break-after:page;overflow:hidden}
 .pg:last-child{page-break-after:auto;break-after:auto}
@@ -1362,17 +1362,52 @@ function BusinessProposalWizard({ onBack }) {
       pptx.layout = "LAYOUT_WIDE"; // 13.33 x 7.5 inches
       const W = 13.33; const H = 7.5;
       const C = { dark:"060D18", navy:"0D1B30", teal:"1A6B7C", blue:"2E6DB4", white:"FFFFFF", offWhite:"E2E8F0", muted:"94A3B8", tealDark:"0F4A56" };
-      const F = "Calibri";
+      const F = "Work Sans";
       const client = form.clientName || "Client";
       const gc = generatedContent;
       const selProds = PROPOSAL_PRODUCTS.filter(p => form.products.includes(p.id));
       const ln = (color) => ({ pt:1, color });
 
-      // ── Footer helper — Avature logo text + page number ──────────────────
+      // ── Footer helper — Avature logo image + page number ───────────────
+      // Convert SVG logo to PNG via canvas for pptxgenjs compatibility
+      const getLogoData = async () => {
+        try {
+          const svgB64 = LOGO_URI; // already data:image/svg+xml;base64,...
+          const img = new Image();
+          await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = svgB64; });
+          const canvas = document.createElement('canvas');
+          canvas.width = 324; canvas.height = 64;
+          const ctx = canvas.getContext('2d');
+          // Draw logo then recolor dark pixels to white (for dark footer)
+          ctx.drawImage(img, 0, 0, 324, 64);
+          const pixels = ctx.getImageData(0, 0, 324, 64);
+          for (let i = 0; i < pixels.data.length; i += 4) {
+            const r = pixels.data[i], g = pixels.data[i+1], b = pixels.data[i+2], a = pixels.data[i+3];
+            if (a > 10) {
+              // Make dark pixels (near-black text) white
+              if (r < 60 && g < 60 && b < 60) {
+                pixels.data[i] = 255; pixels.data[i+1] = 255; pixels.data[i+2] = 255;
+              }
+            }
+          }
+          ctx.putImageData(pixels, 0, 0);
+          return canvas.toDataURL('image/png');
+        } catch(e) {
+          console.warn("Logo conversion failed:", e);
+          return null;
+        }
+      };
+      const logoData = await getLogoData();
+
       const addFooter = (slide, pageNum) => {
         slide.addShape("rect", { x:0, y:H-0.38, w:W, h:0.38, fill:{color:C.dark}, line:{type:"none"} });
         slide.addShape("rect", { x:0, y:H-0.38, w:W, h:0.03, fill:{color:C.teal}, line:{type:"none"} });
-        slide.addText("AVATURE", { x:0.35, y:H-0.32, w:2, h:0.25, fontSize:9, bold:true, color:C.teal, fontFace:F, charSpacing:2 });
+        // Logo image in footer (white version via CSS filter not available in pptx, so we use text fallback if logo fails)
+        if (logoData) {
+          slide.addImage({ data: logoData, x:0.25, y:H-0.34, w:0.9, h:0.28 });
+        } else {
+          slide.addText("avature", { x:0.25, y:H-0.33, w:1.2, h:0.26, fontSize:9, bold:true, color:C.teal, fontFace:F });
+        }
         slide.addText("Confidential | avature.net", { x:W/2-2, y:H-0.32, w:4, h:0.25, fontSize:8, color:C.muted, fontFace:F, align:"center" });
         slide.addText(String(pageNum), { x:W-0.9, y:H-0.32, w:0.55, h:0.25, fontSize:8, color:C.muted, fontFace:F, align:"right" });
       };
@@ -1386,20 +1421,37 @@ function BusinessProposalWizard({ onBack }) {
         }
       };
 
-      // ── Image fetcher — fetch from avature.net and convert to base64 ─────
+      // ── Image fetcher via CORS proxy ─────────────────────────────────────
       const fetchImg = async (url) => {
-        try {
-          const r = await fetch(url);
-          const blob = await r.blob();
-          return await new Promise((res) => {
-            const reader = new FileReader();
-            reader.onloadend = () => res(reader.result);
-            reader.readAsDataURL(blob);
-          });
-        } catch(e) {
-          console.warn("Image fetch failed:", url, e);
-          return null;
+        // Try direct first, then two CORS proxies as fallback
+        const attempts = [
+          url,
+          "https://corsproxy.io/?" + encodeURIComponent(url),
+          "https://api.allorigins.win/raw?url=" + encodeURIComponent(url),
+        ];
+        for (const attempt of attempts) {
+          try {
+            const r = await fetch(attempt);
+            if (!r.ok) continue;
+            const blob = await r.blob();
+            // Resize via canvas to keep file size reasonable
+            const imgEl = new Image();
+            const objectUrl = URL.createObjectURL(blob);
+            await new Promise((res, rej) => { imgEl.onload = res; imgEl.onerror = rej; imgEl.src = objectUrl; });
+            URL.revokeObjectURL(objectUrl);
+            const maxW = 900;
+            const scale = imgEl.width > maxW ? maxW / imgEl.width : 1;
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(imgEl.width * scale);
+            canvas.height = Math.round(imgEl.height * scale);
+            canvas.getContext('2d').drawImage(imgEl, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/jpeg', 0.82);
+          } catch(e) {
+            console.warn("fetchImg attempt failed:", attempt, e.message);
+          }
         }
+        console.warn("All fetchImg attempts failed for:", url);
+        return null;
       };
 
       // Fetch all images in parallel
