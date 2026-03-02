@@ -1344,12 +1344,18 @@ function BusinessProposalWizard({ onBack }) {
     setDownloading(true);
     setPptxError(null);
     try {
-      await new Promise((res,rej) => {
+      await new Promise((res, rej) => {
         if (window.PptxGenJS) return res();
-        const s = document.createElement("script");
-        s.src = "https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundle.js";
-        s.onload = res; s.onerror = rej;
-        document.head.appendChild(s);
+        const tryLoad = (url) => new Promise((resolve, reject) => {
+          const s = document.createElement("script");
+          s.src = url;
+          s.onload = resolve;
+          s.onerror = (e) => reject(new Error("Script load failed: " + url));
+          document.head.appendChild(s);
+        });
+        tryLoad("https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js")
+          .then(res)
+          .catch(() => tryLoad("https://unpkg.com/pptxgenjs@3.12.0/dist/pptxgen.bundle.js").then(res).catch(rej));
       });
 
       const pptx = new window.PptxGenJS();
