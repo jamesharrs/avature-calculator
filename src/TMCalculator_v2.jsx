@@ -858,12 +858,14 @@ function AIMaturityTool({ onBack, initialData, guestMode, guestToken }) {
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment }) {
-  const tools = [
-    { id:"calculator",  title:"Implementation Estimator",      description:"T&M scoping tool for Avature implementations. Configure phases, complexity, resources and export a professional proposal.", icon:"📊", status:"live",   color:"#1A6B7C" },
-    { id:"proposal",    title:"Business Proposal Generator",    description:"Generate comprehensive, branded business proposals tailored to client requirements and Avature solutions.",               icon:"📋", status:"live",   color:"#2E6DB4" },
-    { id:"ai-maturity", title:"AI Maturity Self-Assessment",    description:"Evaluate your organisation's AI readiness across key dimensions and receive a tailored roadmap.",                        icon:"🧠", status:"live",   color:"#7C3AED" },
+function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment, isAdmin }) {
+  const allTools = [
+    { id:"calculator",    title:"Implementation Estimator",    description:"T&M scoping tool for Avature implementations. Configure phases, complexity, resources and export a professional proposal.", icon:"📊", status:"live", color:"#1A6B7C" },
+    { id:"proposal",      title:"Business Proposal Generator", description:"Generate comprehensive, branded business proposals tailored to client requirements and Avature solutions.",               icon:"📋", status:"live", color:"#2E6DB4" },
+    { id:"ai-maturity",   title:"AI Maturity Self-Assessment", description:"Evaluate your organisation\'s AI readiness across key dimensions and receive a tailored roadmap.",                        icon:"🧠", status:"live", color:"#7C3AED" },
+    { id:"admin-clients", title:"Client Portal Admin",         description:"Create client accounts, assign tools, and share secure portal links. Clients log in separately at ?portal.",              icon:"🏢", status:"live", color:"#0F766E", adminOnly:true },
   ];
+  const tools = allTools.filter(t => !t.adminOnly || isAdmin);
 
   const [plans, setPlans] = useState([]);
   const [assessments, setAssessments] = useState([]);
@@ -969,7 +971,8 @@ function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment }) {
               <div key={tool.id} className={"tool-card" + (isLive ? "" : " tool-card-disabled")} onClick={() => isLive && onSelectTool(tool.id)}
                 style={{ background:"#0D1117", border:"1px solid " + (isLive ? tool.color + "44" : "#1F2937"), borderRadius:16, padding:"28px 24px", boxShadow:"0 4px 24px rgba(0,0,0,0.3)", position:"relative", overflow:"hidden" }}>
                 <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background: isLive ? "linear-gradient(90deg," + tool.color + "," + tool.color + "88)" : "#1F2937" }}/>
-                <div style={{ position:"absolute", top:18, right:18 }}>
+                <div style={{ position:"absolute", top:18, right:18, display:"flex", gap:6, alignItems:"center" }}>
+                  {tool.adminOnly && <span style={{ background:"#0F766E22", border:"1px solid #0F766E88", color:"#5EEAD4", fontSize:10, fontWeight:700, borderRadius:20, padding:"3px 10px", letterSpacing:"0.08em" }}>ADMIN</span>}
                   {isLive
                     ? <span style={{ background:"#14532D44", border:"1px solid #166534", color:"#4ADE80", fontSize:10, fontWeight:700, borderRadius:20, padding:"3px 10px", letterSpacing:"0.08em" }}>LIVE</span>
                     : <span style={{ background:"#1F2937", border:"1px solid #374151", color:"#6B7280", fontSize:10, fontWeight:600, borderRadius:20, padding:"3px 10px", letterSpacing:"0.08em" }}>COMING SOON</span>}
@@ -1928,7 +1931,7 @@ function LoginPage({ onLogin }) {
 
   const handleSubmit = () => {
     if (user.toLowerCase() === "avature" && pass.toLowerCase() === "avature") {
-      onLogin();
+      onLogin(user.toLowerCase());
     } else {
       setError("Incorrect username or password");
       setShake(true);
@@ -2374,6 +2377,8 @@ function RateCard({ resources, rateAdj, onRateAdjChange, onRateChange, onDaysCha
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function TMCalculator() {
   const [loggedIn, setLoggedIn] = useState(false);
+  const [loggedInUser, setLoggedInUser] = useState("");
+  const isAdmin = loggedInUser === "avature"; // James's login
   const [screen, setScreen] = useState("dashboard"); // "dashboard" | "calculator"
   const [months, setMonths] = useState(3);
   const [rateAdj, setRateAdj] = useState(0);
@@ -2508,15 +2513,22 @@ export default function TMCalculator() {
     );
   }
 
-  if (!loggedIn) return <LoginPage onLogin={() => { setLoggedIn(true); setScreen("dashboard"); }} />;
+  // ── URL-based routing: ?portal shows client portal ──────────────────────────
+  if (typeof window !== "undefined" && window.location.search.includes("portal")) {
+    return <ClientPortal />;
+  }
+
+  if (!loggedIn) return <LoginPage onLogin={(u) => { setLoggedIn(true); setLoggedInUser(u); setScreen("dashboard"); }} />;
   if (screen === "dashboard") return (
     <Dashboard
+      isAdmin={isAdmin}
       onSelectTool={id => {
         if (id === "calculator") { setLoadedPlanId(null); setScreen("calculator"); }
         else if (id === "ai-maturity") { setLoadedAssessment(null); setScreen("ai-maturity"); }
         else if (id === "proposal") { setScreen("proposal"); }
+        else if (id === "admin-clients") { setScreen("admin-clients"); }
       }}
-      onSignOut={() => { setLoggedIn(false); setScreen("dashboard"); }}
+      onSignOut={() => { setLoggedIn(false); setLoggedInUser(""); setScreen("dashboard"); }}
       onLoadPlan={handleLoadPlan}
       onLoadAssessment={handleLoadAssessment}
     />
@@ -2529,6 +2541,9 @@ export default function TMCalculator() {
   );
   if (screen === "proposal") return (
     <BusinessProposalWizard onBack={() => setScreen("dashboard")} />
+  );
+  if (screen === "admin-clients") return (
+    <AdminClients onBack={() => setScreen("dashboard")} />
   );
 
   const currSym = CURRENCIES.find(c => c.code === currency)?.symbol || "$";
@@ -2952,4 +2967,715 @@ export default function TMCalculator() {
       </div>
     </div>
   );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLIENT PORTAL SYSTEM
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Available tools that can be assigned to clients
+const CLIENT_TOOLS = [
+  { id: "quote_builder",    label: "Quote Builder",             icon: "💰", desc: "Interactive pricing and scoping tool" },
+  { id: "timeline_viewer",  label: "Implementation Timeline",   icon: "📅", desc: "View your project implementation plan" },
+  { id: "proposal_viewer",  label: "Proposal Viewer",           icon: "📄", desc: "Access your tailored Avature proposal" },
+  { id: "roi_calculator",   label: "ROI Calculator",            icon: "📊", desc: "Model your return on investment" },
+];
+
+// Simple hash for password — use SHA-256 via SubtleCrypto
+async function hashPassword(password) {
+  const enc = new TextEncoder().encode(password + "avature_salt_2025");
+  const buf = await crypto.subtle.digest("SHA-256", enc);
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+
+// DB helpers for client tables
+const clientDb = {
+  ensureTables: async () => {
+    // We use Supabase REST — tables must exist. Check by trying to query.
+    try {
+      await sbFetch("client_accounts?limit=1");
+      return true;
+    } catch(e) {
+      return false; // Table doesn't exist yet
+    }
+  },
+  getClients: () => sbFetch("client_accounts?order=created_at.desc"),
+  getClient: (username) => sbFetch("client_accounts?username=eq." + encodeURIComponent(username) + "&limit=1"),
+  createClient: (data) => sbFetch("client_accounts", { method:"POST", body: JSON.stringify(data) }),
+  updateClient: (id, data) => sbFetch("client_accounts?id=eq." + id, { method:"PATCH", body: JSON.stringify(data), prefer:"return=representation" }),
+  deleteClient: (id) => sbFetch("client_accounts?id=eq." + id, { method:"DELETE", prefer:"" }),
+  logLogin: (clientId) => sbFetch("client_sessions", {
+    method:"POST",
+    body: JSON.stringify({ client_id: clientId, logged_in_at: new Date().toISOString() })
+  }),
+};
+
+// ── SQL Setup Instructions Component ─────────────────────────────────────────
+function DbSetupInstructions() {
+  const sql = `-- Run this in your Supabase SQL Editor:
+
+CREATE TABLE IF NOT EXISTS client_accounts (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  company_name text NOT NULL,
+  username text UNIQUE NOT NULL,
+  password_hash text NOT NULL,
+  tools text[] DEFAULT '{}',
+  notes text DEFAULT '',
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now(),
+  last_login timestamptz
+);
+
+CREATE TABLE IF NOT EXISTS client_sessions (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  client_id uuid REFERENCES client_accounts(id) ON DELETE CASCADE,
+  logged_in_at timestamptz DEFAULT now()
+);
+
+-- Allow anon reads/writes (for client login)
+ALTER TABLE client_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "anon_all" ON client_accounts FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "anon_all" ON client_sessions FOR ALL USING (true) WITH CHECK (true);`;
+
+  const [copied, setCopied] = useState(false);
+  return (
+    <div style={{ background:"#0a1628", border:"1px solid #F59E0B44", borderRadius:10, padding:24 }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+        <span style={{ fontSize:20 }}>⚠️</span>
+        <strong style={{ color:"#F59E0B", fontSize:15 }}>One-time setup required</strong>
+      </div>
+      <p style={{ color:"#94A3B8", fontSize:13, margin:"0 0 14px" }}>
+        The client portal tables don't exist yet. Run this SQL in your <a href="https://supabase.com/dashboard" target="_blank" rel="noreferrer" style={{ color:"#38BDF8" }}>Supabase SQL Editor</a> to create them:
+      </p>
+      <pre style={{ background:"#060D18", border:"1px solid #1F2937", borderRadius:6, padding:16, fontSize:11.5, color:"#86EFAC", overflowX:"auto", margin:"0 0 12px", lineHeight:1.6 }}>{sql}</pre>
+      <button onClick={() => { navigator.clipboard.writeText(sql); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+        style={{ background: copied ? "#059669" : "#1F2937", color:"#F9FAFB", border:"none", borderRadius:6, padding:"8px 18px", fontSize:13, cursor:"pointer", transition:"background 0.2s" }}>
+        {copied ? "✓ Copied!" : "Copy SQL"}
+      </button>
+    </div>
+  );
+}
+
+// ── Admin Client Management Panel ─────────────────────────────────────────────
+function AdminClients({ onBack }) {
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [dbReady, setDbReady] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingClient, setEditingClient] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [copiedId, setCopiedId] = useState(null);
+
+  const emptyForm = { company_name:"", username:"", password:"", tools:[], notes:"", is_active:true };
+  const [form, setForm] = useState(emptyForm);
+
+  const showToast = (msg, type="success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  useEffect(() => {
+    async function init() {
+      const ready = await clientDb.ensureTables();
+      setDbReady(ready);
+      if (ready) {
+        try {
+          const data = await clientDb.getClients();
+          setClients(data || []);
+        } catch(e) { console.error(e); }
+      }
+      setLoading(false);
+    }
+    init();
+  }, []);
+
+  const openCreate = () => { setEditingClient(null); setForm(emptyForm); setShowForm(true); };
+  const openEdit = (c) => {
+    setEditingClient(c);
+    setForm({ company_name: c.company_name, username: c.username, password:"", tools: c.tools || [], notes: c.notes || "", is_active: c.is_active });
+    setShowForm(true);
+  };
+
+  const handleSave = async () => {
+    if (!form.company_name.trim() || !form.username.trim()) return alert("Company name and username are required.");
+    if (!editingClient && !form.password.trim()) return alert("Password is required for new clients.");
+    setSaving(true);
+    try {
+      const payload = { company_name: form.company_name.trim(), username: form.username.trim().toLowerCase(), tools: form.tools, notes: form.notes, is_active: form.is_active };
+      if (form.password.trim()) payload.password_hash = await hashPassword(form.password.trim());
+      if (editingClient) {
+        const updated = await clientDb.updateClient(editingClient.id, payload);
+        setClients(cs => cs.map(c => c.id === editingClient.id ? (updated?.[0] || {...c,...payload}) : c));
+        showToast("Client updated");
+      } else {
+        const created = await clientDb.createClient(payload);
+        setClients(cs => [created?.[0] || payload, ...cs]);
+        showToast("Client created — share login details with them");
+      }
+      setShowForm(false);
+    } catch(e) { alert("Save failed: " + e.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this client? They will lose access immediately.")) return;
+    setDeleting(id);
+    try {
+      await clientDb.deleteClient(id);
+      setClients(cs => cs.filter(c => c.id !== id));
+      showToast("Client deleted", "error");
+    } catch(e) { alert("Delete failed: " + e.message); }
+    finally { setDeleting(null); }
+  };
+
+  const toggleTool = (toolId) => setForm(f => ({ ...f, tools: f.tools.includes(toolId) ? f.tools.filter(t => t !== toolId) : [...f.tools, toolId] }));
+
+  const portalUrl = window.location.origin + window.location.pathname + "?portal";
+
+  const copyCredentials = (c) => {
+    const text = `Your Avature Client Portal access:\n\nURL: ${portalUrl}\nUsername: ${c.username}\n\nPlease use the password provided separately.`;
+    navigator.clipboard.writeText(text);
+    setCopiedId(c.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const S = {
+    page: { minHeight:"100vh", background:"linear-gradient(135deg,#060D18 0%,#0D2A3A 60%,#060D18 100%)", fontFamily:"'DM Sans','Segoe UI',sans-serif", color:"#F9FAFB" },
+    header: { background:"linear-gradient(180deg,#0D1B30 0%,#060D18 100%)", borderBottom:"1px solid #1F2937", padding:"0 40px" },
+    headerInner: { maxWidth:1100, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"20px 0" },
+    content: { maxWidth:1100, margin:"0 auto", padding:"40px 40px" },
+    card: { background:"#0D1B30", border:"1px solid #1F2937", borderRadius:12, padding:24, marginBottom:16 },
+    btn: { background:"#1A6B7C", color:"#fff", border:"none", borderRadius:8, padding:"9px 20px", fontSize:13, fontWeight:600, cursor:"pointer" },
+    btnGhost: { background:"transparent", color:"#6B7280", border:"1px solid #1F2937", borderRadius:8, padding:"8px 16px", fontSize:13, cursor:"pointer" },
+    input: { width:"100%", background:"#060D18", border:"1px solid #1F2937", borderRadius:8, padding:"10px 14px", fontSize:13, color:"#F9FAFB", outline:"none", boxSizing:"border-box" },
+    label: { fontSize:12, fontWeight:600, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:6, display:"block" },
+    badge: { display:"inline-block", borderRadius:20, padding:"3px 10px", fontSize:11, fontWeight:600 },
+  };
+
+  return (
+    <div style={S.page}>
+      <style>{`.adm-btn:hover{opacity:0.85!important} .adm-row:hover{background:#111827!important} .adm-ghost:hover{border-color:#374151!important;color:#D1D5DB!important}`}</style>
+
+      {toast && (
+        <div style={{ position:"fixed", top:20, right:20, background: toast.type==="error" ? "#7F1D1D" : "#064E3B", color:"#F9FAFB", border:`1px solid ${toast.type==="error"?"#DC2626":"#059669"}`, borderRadius:8, padding:"12px 20px", fontSize:13, fontWeight:500, zIndex:9999, boxShadow:"0 4px 20px rgba(0,0,0,0.4)" }}>
+          {toast.type==="error" ? "🗑️ " : "✅ "}{toast.msg}
+        </div>
+      )}
+
+      <div style={S.header}>
+        <div style={S.headerInner}>
+          <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+            <img src={LOGO_URI} alt="Avature" style={{ height:26 }}/>
+            <div style={{ width:1, height:20, background:"#1F2937" }}/>
+            <span style={{ fontSize:13, color:"#6B7280" }}>Admin</span>
+            <span style={{ fontSize:13, color:"#374151" }}>/</span>
+            <span style={{ fontSize:13, color:"#F9FAFB", fontWeight:600 }}>Client Portal</span>
+          </div>
+          <button className="adm-ghost" onClick={onBack} style={S.btnGhost}>← Back to dashboard</button>
+        </div>
+      </div>
+
+      <div style={S.content}>
+        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:32 }}>
+          <div>
+            <h1 style={{ fontSize:28, fontWeight:700, margin:"0 0 8px" }}>Client Portal Management</h1>
+            <p style={{ color:"#6B7280", fontSize:14, margin:0 }}>Create client accounts and assign tools. Clients log in at a separate portal URL.</p>
+          </div>
+          <div style={{ display:"flex", gap:10, alignItems:"center" }}>
+            <div style={{ background:"#0D1B30", border:"1px solid #1F2937", borderRadius:8, padding:"8px 14px", fontSize:12, color:"#6B7280" }}>
+              Portal URL: <span style={{ color:"#38BDF8", fontFamily:"monospace" }}>{portalUrl}</span>
+            </div>
+            {dbReady && <button className="adm-btn" onClick={openCreate} style={S.btn}>+ New Client</button>}
+          </div>
+        </div>
+
+        {loading && <div style={{ color:"#6B7280", textAlign:"center", padding:60 }}>Loading...</div>}
+
+        {!loading && dbReady === false && <DbSetupInstructions />}
+
+        {!loading && dbReady && !showForm && (
+          <>
+            {clients.length === 0 ? (
+              <div style={{ ...S.card, textAlign:"center", padding:60 }}>
+                <div style={{ fontSize:48, marginBottom:16 }}>👥</div>
+                <h3 style={{ color:"#F9FAFB", margin:"0 0 8px" }}>No clients yet</h3>
+                <p style={{ color:"#6B7280", fontSize:14, margin:"0 0 24px" }}>Create your first client account to get started.</p>
+                <button className="adm-btn" onClick={openCreate} style={S.btn}>+ Create First Client</button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(340px,1fr))", gap:16 }}>
+                  {clients.map(c => (
+                    <div key={c.id} className="adm-row" style={{ ...S.card, cursor:"default", transition:"background 0.15s", position:"relative" }}>
+                      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:12 }}>
+                        <div>
+                          <div style={{ fontSize:16, fontWeight:700, color:"#F9FAFB", marginBottom:2 }}>{c.company_name}</div>
+                          <div style={{ fontSize:12, color:"#6B7280", fontFamily:"monospace" }}>@{c.username}</div>
+                        </div>
+                        <span style={{ ...S.badge, background: c.is_active ? "#064E3B" : "#1F2937", color: c.is_active ? "#86EFAC" : "#6B7280" }}>
+                          {c.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+
+                      {c.tools?.length > 0 && (
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:12 }}>
+                          {c.tools.map(tid => {
+                            const t = CLIENT_TOOLS.find(x => x.id === tid);
+                            return t ? <span key={tid} style={{ ...S.badge, background:"#1A6B7C22", color:"#67E8F9", border:"1px solid #1A6B7C44" }}>{t.icon} {t.label}</span> : null;
+                          })}
+                        </div>
+                      )}
+
+                      {c.notes && <p style={{ fontSize:12, color:"#6B7280", margin:"0 0 12px", fontStyle:"italic" }}>{c.notes}</p>}
+
+                      <div style={{ display:"flex", alignItems:"center", gap:8, paddingTop:12, borderTop:"1px solid #1F2937" }}>
+                        <button className="adm-btn" onClick={() => openEdit(c)} style={{ ...S.btn, background:"#1F2937", flex:1, padding:"7px 0" }}>Edit</button>
+                        <button className="adm-btn" onClick={() => copyCredentials(c)} style={{ ...S.btn, background: copiedId===c.id ? "#064E3B" : "#1F2937", flex:1, padding:"7px 0" }}>
+                          {copiedId === c.id ? "✓ Copied!" : "📋 Share Login"}
+                        </button>
+                        <button className="adm-btn" onClick={() => handleDelete(c.id)} disabled={deleting===c.id}
+                          style={{ background:"transparent", border:"1px solid #7F1D1D44", color:"#F87171", borderRadius:8, padding:"7px 12px", fontSize:13, cursor:"pointer" }}>
+                          {deleting===c.id ? "…" : "🗑"}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Create / Edit Form */}
+        {showForm && (
+          <div style={{ ...S.card, maxWidth:600 }}>
+            <h2 style={{ fontSize:20, fontWeight:700, margin:"0 0 24px", color:"#F9FAFB" }}>
+              {editingClient ? `Edit — ${editingClient.company_name}` : "Create New Client"}
+            </h2>
+
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:16 }}>
+              <div>
+                <label style={S.label}>Company Name *</label>
+                <input style={S.input} value={form.company_name} onChange={e => setForm(f => ({...f, company_name:e.target.value}))} placeholder="e.g. Qatar Airways" />
+              </div>
+              <div>
+                <label style={S.label}>Username *</label>
+                <input style={S.input} value={form.username} onChange={e => setForm(f => ({...f, username:e.target.value.toLowerCase().replace(/\s/g,"")}))} placeholder="e.g. qatarairways" />
+              </div>
+            </div>
+
+            <div style={{ marginBottom:16 }}>
+              <label style={S.label}>{editingClient ? "New Password (leave blank to keep current)" : "Password *"}</label>
+              <input style={S.input} type="password" value={form.password} onChange={e => setForm(f => ({...f, password:e.target.value}))} placeholder={editingClient ? "Leave blank to keep current password" : "Set a secure password"} />
+            </div>
+
+            <div style={{ marginBottom:20 }}>
+              <label style={S.label}>Portal Tools</label>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                {CLIENT_TOOLS.map(t => (
+                  <label key={t.id} style={{ display:"flex", alignItems:"center", gap:10, background: form.tools.includes(t.id) ? "#1A6B7C22" : "#060D18", border:`1px solid ${form.tools.includes(t.id) ? "#1A6B7C" : "#1F2937"}`, borderRadius:8, padding:"10px 14px", cursor:"pointer", transition:"all 0.15s" }}>
+                    <input type="checkbox" checked={form.tools.includes(t.id)} onChange={() => toggleTool(t.id)} style={{ accentColor:"#1A6B7C" }} />
+                    <span style={{ fontSize:16 }}>{t.icon}</span>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:600, color:"#F9FAFB" }}>{t.label}</div>
+                      <div style={{ fontSize:11, color:"#6B7280" }}>{t.desc}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginBottom:20 }}>
+              <label style={S.label}>Internal Notes</label>
+              <textarea style={{ ...S.input, minHeight:70, resize:"vertical" }} value={form.notes} onChange={e => setForm(f => ({...f, notes:e.target.value}))} placeholder="e.g. Opportunity stage, deal notes, contacts..." />
+            </div>
+
+            <div style={{ marginBottom:24 }}>
+              <label style={{ display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}>
+                <input type="checkbox" checked={form.is_active} onChange={e => setForm(f => ({...f, is_active:e.target.checked}))} style={{ accentColor:"#1A6B7C", width:16, height:16 }} />
+                <span style={{ fontSize:13, color:"#D1D5DB" }}>Account active (clients can log in)</span>
+              </label>
+            </div>
+
+            <div style={{ display:"flex", gap:10 }}>
+              <button className="adm-btn" onClick={handleSave} disabled={saving} style={{ ...S.btn, opacity: saving ? 0.6 : 1 }}>
+                {saving ? "Saving…" : (editingClient ? "Save Changes" : "Create Client")}
+              </button>
+              <button className="adm-ghost" onClick={() => setShowForm(false)} style={S.btnGhost}>Cancel</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Client Portal Login ───────────────────────────────────────────────────────
+function ClientPortalLogin({ onLogin }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e) => {
+    e && e.preventDefault && e.preventDefault();
+    setError(""); setLoading(true);
+    try {
+      const results = await clientDb.getClient(username.trim().toLowerCase());
+      if (!results || results.length === 0) { setError("Invalid username or password."); return; }
+      const client = results[0];
+      if (!client.is_active) { setError("This account has been deactivated. Please contact your Avature representative."); return; }
+      const hash = await hashPassword(password);
+      if (hash !== client.password_hash) { setError("Invalid username or password."); return; }
+      // Log the session
+      try { await clientDb.logLogin(client.id); } catch(e) {}
+      onLogin(client);
+    } catch(e) {
+      setError("Login failed: " + e.message);
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#060D18 0%,#0D2A3A 60%,#060D18 100%)", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", fontFamily:"'DM Sans','Segoe UI',sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap'); *{box-sizing:border-box} .cp-input:focus{border-color:#1A6B7C!important;outline:none} .cp-btn:hover{background:#155e6b!important}`}</style>
+      <div style={{ width:"100%", maxWidth:420, padding:"0 20px" }}>
+        <div style={{ textAlign:"center", marginBottom:40 }}>
+          <img src={LOGO_URI} alt="Avature" style={{ height:32, marginBottom:24 }}/>
+          <h1 style={{ fontSize:26, fontWeight:700, color:"#F9FAFB", margin:"0 0 8px" }}>Client Portal</h1>
+          <p style={{ color:"#6B7280", fontSize:14, margin:0 }}>Sign in to access your Avature workspace</p>
+        </div>
+
+        <div style={{ background:"#0D1B30", border:"1px solid #1F2937", borderRadius:16, padding:32 }}>
+          <div style={{ marginBottom:16 }}>
+            <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:8 }}>Username</label>
+            <input className="cp-input" value={username} onChange={e => setUsername(e.target.value)} onKeyDown={e => e.key==="Enter" && handleLogin()}
+              style={{ width:"100%", background:"#060D18", border:"1px solid #1F2937", borderRadius:8, padding:"11px 14px", fontSize:14, color:"#F9FAFB", transition:"border-color 0.2s" }}
+              placeholder="your-username" autoCapitalize="none" autoCorrect="off" />
+          </div>
+          <div style={{ marginBottom:20 }}>
+            <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:8 }}>Password</label>
+            <input className="cp-input" type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key==="Enter" && handleLogin()}
+              style={{ width:"100%", background:"#060D18", border:"1px solid #1F2937", borderRadius:8, padding:"11px 14px", fontSize:14, color:"#F9FAFB", transition:"border-color 0.2s" }}
+              placeholder="••••••••" />
+          </div>
+          {error && <div style={{ background:"#7F1D1D22", border:"1px solid #7F1D1D", borderRadius:8, padding:"10px 14px", color:"#F87171", fontSize:13, marginBottom:16 }}>{error}</div>}
+          <button className="cp-btn" onClick={handleLogin} disabled={loading}
+            style={{ width:"100%", background:"#1A6B7C", color:"#fff", border:"none", borderRadius:8, padding:"12px", fontSize:14, fontWeight:600, cursor: loading ? "wait" : "pointer", transition:"background 0.2s", opacity: loading ? 0.7 : 1 }}>
+            {loading ? "Signing in…" : "Sign In"}
+          </button>
+        </div>
+        <p style={{ textAlign:"center", color:"#374151", fontSize:12, marginTop:24 }}>
+          Need access? Contact your Avature representative.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Client Portal Dashboard ───────────────────────────────────────────────────
+function ClientPortalDashboard({ client, onSignOut }) {
+  const [activeTool, setActiveTool] = useState(null);
+  const tools = CLIENT_TOOLS.filter(t => (client.tools || []).includes(t.id));
+
+  const renderTool = () => {
+    switch(activeTool) {
+      case "quote_builder":    return <ClientQuoteBuilder onBack={() => setActiveTool(null)} client={client} />;
+      case "roi_calculator":   return <ClientROICalc onBack={() => setActiveTool(null)} client={client} />;
+      case "timeline_viewer":  return <ClientTimelineViewer onBack={() => setActiveTool(null)} client={client} />;
+      case "proposal_viewer":  return <ClientProposalViewer onBack={() => setActiveTool(null)} client={client} />;
+      default: return null;
+    }
+  };
+
+  if (activeTool) return renderTool();
+
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#060D18 0%,#0D2A3A 60%,#060D18 100%)", fontFamily:"'DM Sans','Segoe UI',sans-serif", color:"#F9FAFB" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap'); *{box-sizing:border-box} .cp-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,0.4)!important} .cp-signout:hover{color:#F9FAFB!important}`}</style>
+      <div style={{ background:"linear-gradient(180deg,#0D1B30 0%,#060D18 100%)", borderBottom:"1px solid #1F2937", padding:"0 40px" }}>
+        <div style={{ maxWidth:1000, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"20px 0" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+            <img src={LOGO_URI} alt="Avature" style={{ height:26 }}/>
+            <div style={{ width:1, height:20, background:"#1F2937" }}/>
+            <span style={{ fontSize:13, color:"#6B7280" }}>Client Portal</span>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+            <span style={{ fontSize:13, color:"#6B7280" }}>{client.company_name}</span>
+            <button className="cp-signout" onClick={onSignOut} style={{ background:"transparent", border:"none", color:"#374151", fontSize:13, cursor:"pointer", fontFamily:"inherit", transition:"color 0.2s" }}>Sign out</button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth:1000, margin:"0 auto", padding:"52px 40px 40px" }}>
+        <div style={{ marginBottom:8 }}>
+          <span style={{ fontSize:12, color:"#1A6B7C", fontWeight:600, letterSpacing:"0.1em", textTransform:"uppercase" }}>Welcome back</span>
+        </div>
+        <h1 style={{ fontSize:32, fontWeight:700, margin:"0 0 8px", color:"#F9FAFB" }}>{client.company_name}</h1>
+        <p style={{ color:"#6B7280", fontSize:14, margin:"0 0 44px" }}>Your Avature workspace — tools and resources prepared for you.</p>
+
+        {tools.length === 0 ? (
+          <div style={{ background:"#0D1B30", border:"1px solid #1F2937", borderRadius:12, padding:60, textAlign:"center" }}>
+            <div style={{ fontSize:48, marginBottom:16 }}>🔧</div>
+            <h3 style={{ color:"#F9FAFB", margin:"0 0 8px" }}>No tools assigned yet</h3>
+            <p style={{ color:"#6B7280", fontSize:14, margin:0 }}>Your Avature team will set up your workspace shortly.</p>
+          </div>
+        ) : (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))", gap:20 }}>
+            {tools.map(t => (
+              <div key={t.id} className="cp-card" onClick={() => setActiveTool(t.id)}
+                style={{ background:"#0D1B30", border:"1px solid #1F2937", borderRadius:14, padding:28, cursor:"pointer", transition:"all 0.2s", boxShadow:"0 2px 12px rgba(0,0,0,0.2)" }}>
+                <div style={{ fontSize:36, marginBottom:16 }}>{t.icon}</div>
+                <h3 style={{ fontSize:16, fontWeight:700, margin:"0 0 8px", color:"#F9FAFB" }}>{t.label}</h3>
+                <p style={{ fontSize:13, color:"#6B7280", margin:"0 0 20px", lineHeight:1.5 }}>{t.desc}</p>
+                <div style={{ fontSize:12, color:"#1A6B7C", fontWeight:600 }}>Open →</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={{ marginTop:60, padding:"24px 0", borderTop:"1px solid #1F2937" }}>
+          <p style={{ color:"#374151", fontSize:12, margin:0 }}>
+            Questions? Contact your Avature representative · <a href="mailto:sales@avature.net" style={{ color:"#1A6B7C" }}>sales@avature.net</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Client Tools (placeholders with structure ready for real content) ─────────
+function ClientBack({ onBack, title }) {
+  return (
+    <div style={{ background:"linear-gradient(180deg,#0D1B30 0%,#060D18 100%)", borderBottom:"1px solid #1F2937", padding:"0 40px" }}>
+      <div style={{ maxWidth:1000, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 0" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+          <img src={LOGO_URI} alt="Avature" style={{ height:24 }}/>
+          <div style={{ width:1, height:18, background:"#1F2937" }}/>
+          <span style={{ fontSize:13, color:"#6B7280" }}>Client Portal</span>
+          <span style={{ color:"#374151" }}>/</span>
+          <span style={{ fontSize:13, fontWeight:600, color:"#F9FAFB" }}>{title}</span>
+        </div>
+        <button onClick={onBack} style={{ background:"transparent", border:"1px solid #1F2937", borderRadius:8, padding:"7px 16px", color:"#6B7280", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>← Back</button>
+      </div>
+    </div>
+  );
+}
+
+function ClientQuoteBuilder({ onBack, client }) {
+  const [modules, setModules] = useState([
+    { id:"crm", name:"CRM", included:false, users:100, complexity:"standard" },
+    { id:"ats", name:"ATS", included:false, users:100, complexity:"standard" },
+    { id:"careers", name:"Career Sites", included:false, users:0, complexity:"standard" },
+    { id:"events", name:"Events Management", included:false, users:0, complexity:"standard" },
+    { id:"onboarding", name:"Onboarding Portal", included:false, users:100, complexity:"standard" },
+  ]);
+  const [months, setMonths] = useState(6);
+  const RATES = { standard: 1800, complex: 2400, enterprise: 3200 };
+  const BASE_DAYS = { crm:25, ats:20, careers:15, events:12, onboarding:18 };
+  const COMPLEXITY_MULT = { standard:1, complex:1.4, enterprise:1.9 };
+
+  const active = modules.filter(m => m.included);
+  const totalDays = active.reduce((sum, m) => sum + Math.round(BASE_DAYS[m.id] * COMPLEXITY_MULT[m.complexity]), 0);
+  const avgRate = active.length > 0 ? active.reduce((sum, m) => sum + RATES[m.complexity], 0) / active.length : RATES.standard;
+  const totalCost = Math.round(totalDays * avgRate);
+  const costLow = Math.round(totalCost * 0.9);
+  const costHigh = Math.round(totalCost * 1.15);
+
+  const toggle = id => setModules(ms => ms.map(m => m.id===id ? {...m, included:!m.included} : m));
+  const update = (id, key, val) => setModules(ms => ms.map(m => m.id===id ? {...m, [key]:val} : m));
+  const fmt = n => "$" + n.toLocaleString();
+
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#060D18 0%,#0D2A3A 60%,#060D18 100%)", fontFamily:"'DM Sans','Segoe UI',sans-serif", color:"#F9FAFB" }}>
+      <ClientBack onBack={onBack} title="Quote Builder" />
+      <div style={{ maxWidth:1000, margin:"0 auto", padding:"40px 40px" }}>
+        <h1 style={{ fontSize:26, fontWeight:700, margin:"0 0 6px" }}>Build Your Quote</h1>
+        <p style={{ color:"#6B7280", fontSize:14, margin:"0 0 32px" }}>Select the Avature modules you're interested in to generate an indicative implementation estimate.</p>
+
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 320px", gap:24 }}>
+          <div>
+            {modules.map(m => (
+              <div key={m.id} onClick={() => toggle(m.id)} style={{ background: m.included ? "#0D2A3A" : "#0D1B30", border:`1px solid ${m.included ? "#1A6B7C" : "#1F2937"}`, borderRadius:10, padding:20, marginBottom:12, cursor:"pointer", transition:"all 0.15s" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:14 }}>
+                  <div style={{ width:20, height:20, borderRadius:5, border:`2px solid ${m.included ? "#1A6B7C" : "#374151"}`, background: m.included ? "#1A6B7C" : "transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.15s" }}>
+                    {m.included && <span style={{ color:"#fff", fontSize:12, fontWeight:700 }}>✓</span>}
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:15, fontWeight:600, color:"#F9FAFB" }}>{m.name}</div>
+                    {m.included && <div style={{ fontSize:12, color:"#6B7280", marginTop:2 }}>~{BASE_DAYS[m.id]} base days · est. {fmt(Math.round(BASE_DAYS[m.id] * COMPLEXITY_MULT[m.complexity] * RATES[m.complexity]))}</div>}
+                  </div>
+                  {m.included && (
+                    <select value={m.complexity} onClick={e => e.stopPropagation()} onChange={e => update(m.id,"complexity",e.target.value)}
+                      style={{ background:"#060D18", border:"1px solid #374151", borderRadius:6, padding:"5px 10px", color:"#D1D5DB", fontSize:12, cursor:"pointer" }}>
+                      <option value="standard">Standard</option>
+                      <option value="complex">Complex</option>
+                      <option value="enterprise">Enterprise</option>
+                    </select>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ position:"sticky", top:24 }}>
+            <div style={{ background:"#0D1B30", border:"1px solid #1F2937", borderRadius:12, padding:24 }}>
+              <h3 style={{ fontSize:14, fontWeight:600, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.05em", margin:"0 0 20px" }}>Estimate Summary</h3>
+              {active.length === 0 ? (
+                <p style={{ color:"#374151", fontSize:13, textAlign:"center", padding:"20px 0" }}>Select modules to see your estimate</p>
+              ) : (
+                <>
+                  {active.map(m => (
+                    <div key={m.id} style={{ display:"flex", justifyContent:"space-between", fontSize:13, color:"#D1D5DB", marginBottom:8 }}>
+                      <span>{m.name}</span>
+                      <span style={{ color:"#F9FAFB", fontWeight:500 }}>{fmt(Math.round(BASE_DAYS[m.id] * COMPLEXITY_MULT[m.complexity] * RATES[m.complexity]))}</span>
+                    </div>
+                  ))}
+                  <div style={{ borderTop:"1px solid #1F2937", marginTop:16, paddingTop:16 }}>
+                    <div style={{ fontSize:12, color:"#6B7280", marginBottom:8 }}>Indicative Range</div>
+                    <div style={{ fontSize:22, fontWeight:700, color:"#F9FAFB" }}>{fmt(costLow)}</div>
+                    <div style={{ fontSize:14, color:"#6B7280" }}>– {fmt(costHigh)}</div>
+                    <div style={{ marginTop:12, fontSize:12, color:"#6B7280" }}>~{totalDays} consulting days</div>
+                  </div>
+                  <div style={{ marginTop:16, padding:12, background:"#060D18", borderRadius:8, fontSize:11, color:"#6B7280", lineHeight:1.5 }}>
+                    This is an indicative estimate. Your Avature representative will provide a detailed proposal.
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientROICalc({ onBack, client }) {
+  const [inputs, setInputs] = useState({ hires:500, avgSalary:65000, timeToFill:45, recruiterCount:10, jobBoardSpend:120000 });
+  const set = (k,v) => setInputs(i => ({...i, [k]:Number(v)}));
+
+  const savings = {
+    timeToFill: Math.round((inputs.hires * (inputs.avgSalary / 260) * inputs.timeToFill * 0.2) / 1000) * 1000,
+    productivity: Math.round((inputs.recruiterCount * inputs.avgSalary * 0.25) / 1000) * 1000,
+    jobBoards: Math.round(inputs.jobBoardSpend * 0.3 / 1000) * 1000,
+  };
+  const total = Object.values(savings).reduce((a,b) => a+b, 0);
+  const fmt = n => "$" + n.toLocaleString();
+
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#060D18 0%,#0D2A3A 60%,#060D18 100%)", fontFamily:"'DM Sans','Segoe UI',sans-serif", color:"#F9FAFB" }}>
+      <ClientBack onBack={onBack} title="ROI Calculator" />
+      <div style={{ maxWidth:900, margin:"0 auto", padding:"40px 40px" }}>
+        <h1 style={{ fontSize:26, fontWeight:700, margin:"0 0 6px" }}>ROI Calculator</h1>
+        <p style={{ color:"#6B7280", fontSize:14, margin:"0 0 32px" }}>Enter your current metrics to estimate the value Avature could deliver.</p>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:24 }}>
+          <div>
+            {[
+              { key:"hires", label:"Annual Hires", prefix:"" },
+              { key:"avgSalary", label:"Average Salary ($)", prefix:"$" },
+              { key:"timeToFill", label:"Avg. Time to Fill (days)", prefix:"" },
+              { key:"recruiterCount", label:"Number of Recruiters", prefix:"" },
+              { key:"jobBoardSpend", label:"Annual Job Board Spend ($)", prefix:"$" },
+            ].map(f => (
+              <div key={f.key} style={{ marginBottom:16 }}>
+                <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:6 }}>{f.label}</label>
+                <input type="number" value={inputs[f.key]} onChange={e => set(f.key, e.target.value)}
+                  style={{ width:"100%", background:"#060D18", border:"1px solid #1F2937", borderRadius:8, padding:"10px 14px", fontSize:14, color:"#F9FAFB", outline:"none", boxSizing:"border-box" }} />
+              </div>
+            ))}
+          </div>
+          <div>
+            <div style={{ background:"#0D1B30", border:"1px solid #1F2937", borderRadius:12, padding:24, marginBottom:16 }}>
+              <h3 style={{ fontSize:13, fontWeight:600, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.05em", margin:"0 0 20px" }}>Estimated Annual Savings</h3>
+              {[
+                { key:"timeToFill", label:"Time-to-Fill Reduction (20%)" },
+                { key:"productivity", label:"Recruiter Productivity Gain (25%)" },
+                { key:"jobBoards", label:"Job Board Spend Reduction (30%)" },
+              ].map(item => (
+                <div key={item.key} style={{ display:"flex", justifyContent:"space-between", marginBottom:14, paddingBottom:14, borderBottom:"1px solid #1F2937" }}>
+                  <span style={{ fontSize:13, color:"#D1D5DB" }}>{item.label}</span>
+                  <span style={{ fontSize:14, fontWeight:600, color:"#86EFAC" }}>{fmt(savings[item.key])}</span>
+                </div>
+              ))}
+              <div style={{ background:"#1A6B7C22", border:"1px solid #1A6B7C44", borderRadius:8, padding:16, textAlign:"center", marginTop:8 }}>
+                <div style={{ fontSize:12, color:"#6B7280", marginBottom:4 }}>Total Estimated Annual Value</div>
+                <div style={{ fontSize:28, fontWeight:700, color:"#F9FAFB" }}>{fmt(total)}</div>
+              </div>
+            </div>
+            <div style={{ background:"#060D18", border:"1px solid #1F2937", borderRadius:8, padding:14, fontSize:11, color:"#6B7280", lineHeight:1.6 }}>
+              Estimates based on industry benchmarks. Contact your Avature representative for a detailed ROI analysis.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientTimelineViewer({ onBack, client }) {
+  const phases = [
+    { name:"Discovery & Design", weeks:3, color:"#1A6B7C", tasks:["Stakeholder workshops","Requirements documentation","Workflow mapping","Data architecture design"] },
+    { name:"Configuration", weeks:6, color:"#2E6DB4", tasks:["Core platform setup","Workflow configuration","Integration development","Custom templates"] },
+    { name:"UAT & Testing", weeks:3, color:"#7C3AED", tasks:["User acceptance testing","Bug fixes & refinements","Performance testing","Sign-off process"] },
+    { name:"Go-Live & Hypercare", weeks:2, color:"#059669", tasks:["Production deployment","Go-live support","Hypercare monitoring","Knowledge transfer"] },
+  ];
+  const totalWeeks = phases.reduce((s,p) => s+p.weeks, 0);
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#060D18 0%,#0D2A3A 60%,#060D18 100%)", fontFamily:"'DM Sans','Segoe UI',sans-serif", color:"#F9FAFB" }}>
+      <ClientBack onBack={onBack} title="Implementation Timeline" />
+      <div style={{ maxWidth:900, margin:"0 auto", padding:"40px 40px" }}>
+        <h1 style={{ fontSize:26, fontWeight:700, margin:"0 0 6px" }}>Implementation Timeline</h1>
+        <p style={{ color:"#6B7280", fontSize:14, margin:"0 0 32px" }}>Your indicative {totalWeeks}-week implementation plan.</p>
+        <div style={{ marginBottom:32 }}>
+          <div style={{ display:"flex", height:36, borderRadius:8, overflow:"hidden", marginBottom:8 }}>
+            {phases.map((p,i) => <div key={i} style={{ flex:p.weeks, background:p.color, opacity:0.85 }} title={p.name} />)}
+          </div>
+          <div style={{ display:"flex" }}>
+            {phases.map((p,i) => <div key={i} style={{ flex:p.weeks, fontSize:10, color:"#6B7280", textAlign:"center" }}>{p.weeks}w</div>)}
+          </div>
+        </div>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
+          {phases.map((p,i) => (
+            <div key={i} style={{ background:"#0D1B30", border:`1px solid ${p.color}44`, borderRadius:10, padding:20, borderLeft:`3px solid ${p.color}` }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                <h3 style={{ fontSize:14, fontWeight:700, margin:0, color:"#F9FAFB" }}>{p.name}</h3>
+                <span style={{ fontSize:12, color:p.color, fontWeight:600 }}>{p.weeks} weeks</span>
+              </div>
+              <ul style={{ margin:0, paddingLeft:16 }}>
+                {p.tasks.map((t,j) => <li key={j} style={{ fontSize:12, color:"#94A3B8", marginBottom:5 }}>{t}</li>)}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ClientProposalViewer({ onBack, client }) {
+  return (
+    <div style={{ minHeight:"100vh", background:"linear-gradient(135deg,#060D18 0%,#0D2A3A 60%,#060D18 100%)", fontFamily:"'DM Sans','Segoe UI',sans-serif", color:"#F9FAFB" }}>
+      <ClientBack onBack={onBack} title="Proposal Viewer" />
+      <div style={{ maxWidth:900, margin:"0 auto", padding:"40px 40px", textAlign:"center" }}>
+        <div style={{ fontSize:64, marginBottom:24 }}>📄</div>
+        <h2 style={{ color:"#F9FAFB", fontSize:22, margin:"0 0 12px" }}>Your Proposal</h2>
+        <p style={{ color:"#6B7280", fontSize:14, margin:"0 0 32px" }}>Your tailored Avature proposal will appear here once your representative has prepared it.</p>
+        <div style={{ background:"#0D1B30", border:"1px solid #1F2937", borderRadius:12, padding:40, display:"inline-block" }}>
+          <p style={{ color:"#374151", fontSize:14, margin:0 }}>Contact <a href="mailto:sales@avature.net" style={{ color:"#1A6B7C" }}>your representative</a> to request your proposal.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Client Portal Root (handles login + session) ──────────────────────────────
+function ClientPortal() {
+  const [clientUser, setClientUser] = useState(null);
+
+  return clientUser
+    ? <ClientPortalDashboard client={clientUser} onSignOut={() => setClientUser(null)} />
+    : <ClientPortalLogin onLogin={setClientUser} />;
 }
