@@ -107,7 +107,7 @@ const CURRENCIES = [
 const DURATION_OPTIONS = [1,2,3,4,5,6,9,12,15,18];
 const BASELINE_COST = 94000;
 const BASELINE_MONTHS = 3;
-const DEFAULT_NOTICE = `This estimate is provided on a time & materials basis aligned with Avature's standard implementation methodology. Final costs will depend on actual days consumed, scope changes, client resource availability, and requirements discovered during the project lifecycle. This document is confidential and intended solely for the named recipient. · avature.ai`;
+const DEFAULT_NOTICE = `This estimate has been prepared on a time & materials basis in accordance with Avature's standard implementation methodology and is based on the information available at the time of preparation. Final costs will depend on the actual days consumed, confirmed scope, client resource availability, and any additional requirements identified during detailed scoping or throughout the project lifecycle. This document is confidential and intended solely for the named recipient.`;
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function fmtC(n, sym) { return sym + Math.round(n).toLocaleString(); }
@@ -259,7 +259,7 @@ td.bold{font-weight:700;color:#111827}
     <div class="logo-wrap"><img src="${LOGO_URI}" alt="Avature"/></div>
     <div class="cover-main">
       <div class="cover-eyebrow">Professional Services · Time &amp; Materials</div>
-      <div class="cover-title">Implementation<br>Investment Proposal</div>
+      <div class="cover-title">Implementation<br>Investment Estimate</div>
       <div class="cover-subtitle">Confidential — Prepared for Client Review</div>
       ${clientHeading}
     </div>
@@ -2283,7 +2283,7 @@ function ClientDetails({ clientName, setClientName, importantNotice, setImportan
             Professional Services · Time &amp; Materials
           </div>
           <div style={{fontSize:18,fontWeight:700,color:"white",marginBottom:4,lineHeight:1.2}}>
-            Implementation<br/>Investment Proposal
+            Implementation<br/>Investment Estimate
           </div>
           <div style={{fontSize:12,color:"#94A3B8",marginBottom:4}}>Confidential — Prepared for Client Review</div>
           {clientName && (
