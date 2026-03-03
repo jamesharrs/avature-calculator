@@ -862,7 +862,7 @@ function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment, isAd
   const allTools = [
     { id:"calculator",    title:"Implementation Estimator",    description:"T&M scoping tool for Avature implementations. Configure phases, complexity, resources and export a professional proposal.", icon:"📊", status:"live", color:"#1A6B7C" },
     { id:"proposal",      title:"Business Proposal Generator", description:"Generate comprehensive, branded business proposals tailored to client requirements and Avature solutions.",               icon:"📋", status:"live", color:"#2E6DB4" },
-    { id:"ai-maturity",   title:"AI Maturity Self-Assessment", description:"Evaluate your organisation\'s AI readiness across key dimensions and receive a tailored roadmap.",                        icon:"🧠", status:"live", color:"#7C3AED" },
+    { id:"ai-maturity",   title:"AI Maturity Self-Assessment", description:"Evaluate your organisation's AI readiness across key dimensions and receive a tailored roadmap.",                        icon:"🧠", status:"live", color:"#7C3AED" },
     { id:"admin-clients", title:"Client Portal Admin",         description:"Create client accounts, assign tools, and share secure portal links. Clients log in separately at ?portal.",              icon:"🏢", status:"live", color:"#0F766E", adminOnly:true },
   ];
   const tools = allTools.filter(t => !t.adminOnly || isAdmin);
@@ -3473,7 +3473,6 @@ function ClientQuoteBuilder({ onBack, client }) {
     { id:"events", name:"Events Management", included:false, users:0, complexity:"standard" },
     { id:"onboarding", name:"Onboarding Portal", included:false, users:100, complexity:"standard" },
   ]);
-  const [months, setMonths] = useState(6);
   const RATES = { standard: 1800, complex: 2400, enterprise: 3200 };
   const BASE_DAYS = { crm:25, ats:20, careers:15, events:12, onboarding:18 };
   const COMPLEXITY_MULT = { standard:1, complex:1.4, enterprise:1.9 };
