@@ -943,7 +943,7 @@ function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment, isAd
       <div style={{ background:"linear-gradient(180deg,#0D1B30 0%,#060D18 100%)", borderBottom:"1px solid #1F2937", padding:"0 40px" }}>
         <div style={{ maxWidth:1100, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"20px 0" }}>
           <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-            <img src={LOGO_URI} alt="Avature" style={{ height:28 }}/>
+            <img src={LOGO_URI} alt="Avature" style={{ height:28, filter:"brightness(0) invert(1)" }}/>
             <div style={{ width:1, height:20, background:"#1F2937" }}/>
             <span style={{ fontSize:14, color:"#6B7280", fontWeight:500 }}>Professional Services</span>
           </div>
@@ -1695,7 +1695,7 @@ function BusinessProposalWizard({ onBack }) {
 
       {/* Header */}
       <div style={{ background:"linear-gradient(180deg,#0D1B30,#060D18)", borderBottom:"1px solid #1F2937", padding:"14px 28px", display:"flex", alignItems:"center", gap:16, position:"sticky", top:0, zIndex:50 }}>
-        <img src={LOGO_URI} alt="Avature" style={{ height:20 }}/>
+        <img src={LOGO_URI} alt="Avature" style={{ height:20, filter:"brightness(0) invert(1)" }}/>
         <div style={{ width:1, height:18, background:"#334155" }}/>
         <button onClick={onBack} style={{ background:"none", border:"none", padding:0, cursor:"pointer", color:"#475569", fontSize:13, fontFamily:"inherit" }}>Tools</button>
         <span style={{ color:"#334155", fontSize:13 }}>›</span>
@@ -3169,7 +3169,7 @@ function AdminClients({ onBack }) {
       <div style={S.header}>
         <div style={S.headerInner}>
           <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-            <img src={LOGO_URI} alt="Avature" style={{ height:26 }}/>
+            <img src={LOGO_URI} alt="Avature" style={{ height:26, filter:"brightness(0) invert(1)" }}/>
             <div style={{ width:1, height:20, background:"#1F2937" }}/>
             <span style={{ fontSize:13, color:"#6B7280" }}>Admin</span>
             <span style={{ fontSize:13, color:"#374151" }}>/</span>
@@ -3344,7 +3344,7 @@ function ClientPortalLogin({ onLogin }) {
       <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap'); *{box-sizing:border-box} .cp-input:focus{border-color:#1A6B7C!important;outline:none} .cp-btn:hover{background:#155e6b!important}`}</style>
       <div style={{ width:"100%", maxWidth:420, padding:"0 20px" }}>
         <div style={{ textAlign:"center", marginBottom:40 }}>
-          <img src={LOGO_URI} alt="Avature" style={{ height:32, marginBottom:24 }}/>
+          <img src={LOGO_URI} alt="Avature" style={{ height:32, marginBottom:24, filter:"brightness(0) invert(1)" }}/>
           <h1 style={{ fontSize:26, fontWeight:700, color:"#F9FAFB", margin:"0 0 8px" }}>Client Portal</h1>
           <p style={{ color:"#6B7280", fontSize:14, margin:0 }}>Sign in to access your Avature workspace</p>
         </div>
@@ -3399,7 +3399,7 @@ function ClientPortalDashboard({ client, onSignOut }) {
       <div style={{ background:"linear-gradient(180deg,#0D1B30 0%,#060D18 100%)", borderBottom:"1px solid #1F2937", padding:"0 40px" }}>
         <div style={{ maxWidth:1000, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"20px 0" }}>
           <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-            <img src={LOGO_URI} alt="Avature" style={{ height:26 }}/>
+            <img src={LOGO_URI} alt="Avature" style={{ height:26, filter:"brightness(0) invert(1)" }}/>
             <div style={{ width:1, height:20, background:"#1F2937" }}/>
             <span style={{ fontSize:13, color:"#6B7280" }}>Client Portal</span>
           </div>
@@ -3453,7 +3453,7 @@ function ClientBack({ onBack, title }) {
     <div style={{ background:"linear-gradient(180deg,#0D1B30 0%,#060D18 100%)", borderBottom:"1px solid #1F2937", padding:"0 40px" }}>
       <div style={{ maxWidth:1000, margin:"0 auto", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"18px 0" }}>
         <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-          <img src={LOGO_URI} alt="Avature" style={{ height:24 }}/>
+          <img src={LOGO_URI} alt="Avature" style={{ height:24, filter:"brightness(0) invert(1)" }}/>
           <div style={{ width:1, height:18, background:"#1F2937" }}/>
           <span style={{ fontSize:13, color:"#6B7280" }}>Client Portal</span>
           <span style={{ color:"#374151" }}>/</span>
