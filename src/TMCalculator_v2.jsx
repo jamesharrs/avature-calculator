@@ -2975,10 +2975,11 @@ export default function TMCalculator() {
 
 // Available tools that can be assigned to clients
 const CLIENT_TOOLS = [
-  { id: "quote_builder",    label: "Quote Builder",             icon: "💰", desc: "Interactive pricing and scoping tool" },
-  { id: "timeline_viewer",  label: "Implementation Timeline",   icon: "📅", desc: "View your project implementation plan" },
-  { id: "proposal_viewer",  label: "Proposal Viewer",           icon: "📄", desc: "Access your tailored Avature proposal" },
-  { id: "roi_calculator",   label: "ROI Calculator",            icon: "📊", desc: "Model your return on investment" },
+  { id: "quote_builder",         label: "Quote Builder",             icon: "💰", desc: "Interactive pricing and scoping tool" },
+  { id: "timeline_viewer",       label: "Implementation Timeline",   icon: "📅", desc: "View your project implementation plan" },
+  { id: "proposal_viewer",       label: "Proposal Viewer",           icon: "📄", desc: "Access your tailored Avature proposal" },
+  { id: "roi_calculator",        label: "ROI Calculator",            icon: "📊", desc: "Model your return on investment" },
+  { id: "randstad_estimator",    label: "Commercial Estimator",      icon: "🧮", desc: "Avature dedicated instance pricing — EH, CRM, add-ons and TCO" },
 ];
 
 // Simple hash for password — use SHA-256 via SubtleCrypto
@@ -3386,7 +3387,8 @@ function ClientPortalDashboard({ client, onSignOut }) {
       case "quote_builder":    return <ClientQuoteBuilder onBack={() => setActiveTool(null)} client={client} />;
       case "roi_calculator":   return <ClientROICalc onBack={() => setActiveTool(null)} client={client} />;
       case "timeline_viewer":  return <ClientTimelineViewer onBack={() => setActiveTool(null)} client={client} />;
-      case "proposal_viewer":  return <ClientProposalViewer onBack={() => setActiveTool(null)} client={client} />;
+      case "proposal_viewer":      return <ClientProposalViewer onBack={() => setActiveTool(null)} client={client} />;
+      case "randstad_estimator":   return <RandstadEstimator onBack={() => setActiveTool(null)} />;
       default: return null;
     }
   };
@@ -3678,3 +3680,816 @@ function ClientPortal() {
     ? <ClientPortalDashboard client={clientUser} onSignOut={() => setClientUser(null)} />
     : <ClientPortalLogin onLogin={setClientUser} />;
 }
+
+// ─── CLIENT TOOL: RANDSTAD COMMERCIAL ESTIMATOR ────────────────────────────────
+// Source: avature_quote_builder_randstad.jsx — edit that file to update pricing
+
+const EH_BANDS = [
+  { label: "0-2,499 FTE",      maxFTE: 2499,  maxRec: 15, maxHM: 250,  implAv: 33500, implMpg: 14100, annual: 68000 },
+  { label: "2,500-4,999 FTE",  maxFTE: 4999,  maxRec: 30, maxHM: 500,  implAv: 47000, implMpg: 14100, annual: 98000 },
+  { label: "5,000-7,499 FTE",  maxFTE: 7499,  maxRec: 50, maxHM: 750,  implAv: 53500, implMpg: 14100, annual: 112400 },
+  { label: "7,500-9,999 FTE",  maxFTE: 9999,  maxRec: 70, maxHM: 1000, implAv: 53500, implMpg: 14100, annual: 139800 },
+];
+
+// HM licence tiers - additional HM users beyond band inclusion
+// Based on rate card extrapolation: ~$136/user/yr at 250, scaling down at volume
+const HM_TIERS = [
+  { maxHM: 250,  annualPerUser: 0,    note: "Included in band" },
+  { maxHM: 500,  annualPerUser: 80,   note: "Extended HM access" },
+  { maxHM: 1000, annualPerUser: 65,   note: "High-volume HM" },
+  { maxHM: 2000, annualPerUser: 50,   note: "Enterprise HM" },
+  { maxHM: 5000, annualPerUser: 35,   note: "Large enterprise HM" },
+];
+
+// Global discount tiers based on Randstad's current annual spend with Avature
+const DISCOUNT_TIERS = [
+  { minSpend: 1000000, pct: 0.20, label: "$1M+",    display: "20%" },
+  { minSpend:  750000, pct: 0.175,label: "$750K+",   display: "17.5%" },
+  { minSpend:  500000, pct: 0.15, label: "$500K+",   display: "15%" },
+  { minSpend:  250000, pct: 0.10, label: "$250K+",   display: "10%" },
+  { minSpend:       0, pct: 0,    label: "No spend",  display: "0%" },
+];
+function getDiscount(spend) {
+  return DISCOUNT_TIERS.find(t => spend >= t.minSpend) || DISCOUNT_TIERS[DISCOUNT_TIERS.length - 1];
+}
+
+function hmAdditionalFee(bandMaxHM, totalHM) {
+  if (totalHM <= bandMaxHM) return 0;
+  const extra = totalHM - bandMaxHM;
+  const tier = HM_TIERS.find(t => totalHM <= t.maxHM) || HM_TIERS[HM_TIERS.length - 1];
+  return extra * tier.annualPerUser;
+}
+const CRM_BANDS = [
+  { maxUsers: 10,  implAv: 29000, implMpg: 14100, annual: 25500 },
+  { maxUsers: 15,  implAv: 29000, implMpg: 14100, annual: 38250 },
+  { maxUsers: 20,  implAv: 29000, implMpg: 14100, annual: 51000 },
+  { maxUsers: 30,  implAv: 47000, implMpg: 14100, annual: 76500 },
+  { maxUsers: 50,  implAv: 58000, implMpg: 14100, annual: 124950 },
+  { maxUsers: 75,  implAv: 58000, implMpg: 14100, annual: 173400 },
+  { maxUsers: 100, implAv: 70000, implMpg: 14100, annual: 213350 },
+  { maxUsers: 150, implAv: 75000, implMpg: 14100, annual: 286450 },
+  { maxUsers: 200, implAv: 98000, implMpg: 14100, annual: 346800 },
+];
+// Add-on pricing sourced directly from Avature Commercial Catalog (ATS + CRM product pages, March 2025)
+// impl = implementation fee (floor / Avature portion). implMpg = MPG services impl fee.
+// recurring = annual licence fee. scoped = true means price on application.
+// "both" = appears in both ATS and CRM catalogs at same price
+const ADDON_GROUPS = [
+  {
+    group: "Career Site",
+    items: [
+      { id: "career_maps",   name: "External Career Site - Google Maps Integration", implAv: 5500, implMpg: 0, recurring: 4000,
+        note: "Both ATS & CRM. Jobs filtered/displayed by location." },
+      { id: "ai_job_rec",    name: "Job Recommendations on Portals",                 implAv: 5500, implMpg: 0, recurring: 0,
+        note: "Both. ATS standard career site customers: needs scoping. Career Marketplace customers: included." },
+      { id: "internal_site", name: "Internal Standard Careers Site",                 implAv: 7000, implMpg: 0, recurring: 8000,
+        note: "ATS (from MPG rate card)" },
+      { id: "vanity_urls",   name: "Vanity URLs for Portals",                        implAv: 1500, implMpg: 0, recurring: 0,
+        note: "ATS only" },
+    ]
+  },
+  {
+    group: "Landing Pages & Microsites",
+    items: [
+      { id: "landing_page",  name: "Custom Landing Page",              implAv: 3000, implMpg: 0, recurring: 3000,
+        note: "Both ATS & CRM. Single mobile-optimised registration page. Unit price." },
+      { id: "lp_builder",    name: "Landing Page Builder (up to 25)",  implAv: 1500, implMpg: 0, recurring: 8000,
+        note: "Both. Includes Theme Builder for Landing Pages. See add-on record for full pricing." },
+      { id: "custom_themes", name: "Custom Theme for Landing Page",    implAv: 2000, implMpg: 0, recurring: 0,
+        note: "Both ATS & CRM. Unit price." },
+      { id: "page_builder",  name: "Page Builder / Portal Content Mgmt", implAv: 0, implMpg: 0, recurring: 0,
+        scoped: true, note: "Both. Pricing via add-on record." },
+    ]
+  },
+  {
+    group: "Email Marketing",
+    items: [
+      { id: "email_template",  name: "Custom Email Template",              implAv: 2000, implMpg: 0, recurring: 0,
+        note: "Both ATS & CRM. Unit price." },
+      { id: "email_themes",    name: "Custom Email Themes",                implAv: 2000, implMpg: 0, recurring: 0,
+        note: "Both. Unit price." },
+      { id: "email_tb",        name: "Theme Builder for Email Templates",  implAv: 0,    implMpg: 0, recurring: 6500,
+        note: "ATS/Engage & Hire: $6,500/yr. CRM, Events & Campus Recruiting: INCLUDED FREE." },
+      { id: "hv_email",        name: "High Volume Email Marketing",        implAv: 0,    implMpg: 0, recurring: 0,
+        scoped: true, note: "CRM. Pricing via add-on record." },
+    ]
+  },
+  {
+    group: "Interview Scheduling",
+    items: [
+      { id: "self_schedule",  name: "Self-Scheduling with Time Slots",      implAv: 3000, implMpg: 0, recurring: 4000,
+        note: "Both ATS & CRM. Includes Timeslots + Availability portal with one branded theme." },
+      { id: "auto_sched_std", name: "AutoScheduler - Non-Enterprise",        implAv: 3000, implMpg: 0, recurring: 4000,
+        note: "Both ATS & CRM." },
+      { id: "auto_sched_ent", name: "AutoScheduler - Enterprise (5,000+ employees)", implAv: 8000, implMpg: 0, recurring: 13000,
+        note: "Both ATS & CRM." },
+    ]
+  },
+  {
+    group: "Reporting & Analytics",
+    items: [
+      { id: "report_builder", name: "Report Builder",   implAv: 0,    implMpg: 0, recurring: 0,
+        scoped: true, note: "Both ATS & CRM. Pricing via add-on record." },
+      { id: "custom_report",  name: "Custom Report",    implAv: 2000, implMpg: 0, recurring: 1500,
+        note: "Both. Unit price. Bundle pricing via add-on record." },
+      { id: "dashboards",     name: "Dashboards",       implAv: 0,    implMpg: 0, recurring: 0,
+        scoped: true, note: "Both ATS & CRM. Pricing via add-on record." },
+    ]
+  },
+  {
+    group: "Integrations",
+    items: [
+      { id: "linkedin",       name: "LinkedIn Integration",            implAv: 5000, implMpg: 0, recurring: 6500,
+        note: "Requires career site" },
+      { id: "sso",            name: "SSO SAML 2.0",                   implAv: 2500, implMpg: 0, recurring: 3500 },
+      { id: "data_warehouse", name: "Data Warehouse Journal Feed",     implAv: 5500, implMpg: 0, recurring: 10000 },
+      { id: "video_int",      name: "Video Interview (e.g. HireVue)", implAv: 4000, implMpg: 0, recurring: 3000 },
+      { id: "broadbean",      name: "Auto Job Posting (Broadbean)",   implAv: 6000, implMpg: 0, recurring: 5000 },
+      { id: "twilio_sms",     name: "Twilio SMS Messaging",           implAv: 4000, implMpg: 0, recurring: 3500 },
+      { id: "sandbox",        name: "Additional Sandbox Instance",    implAv: 3000, implMpg: 0, recurring: 3500,
+        note: "Both ATS & CRM. Includes 2 refreshes/yr. Extra refresh: $1,000 impl (if annual refreshes used)." },
+    ]
+  },
+  {
+    group: "AI & Agentic",
+    items: [
+      { id: "conv_ai",       name: "Conversational AI / Chatbot",   implAv: 0, implMpg: 0, recurring: 0, scoped: true,
+        note: "Scope-based pricing" },
+      { id: "agentic",       name: "Agentic Workflow Automation",   implAv: 0, implMpg: 0, recurring: 0, scoped: true,
+        note: "Priced on complexity" },
+      { id: "early_careers", name: "Early Careers Module",          implAv: 0, implMpg: 0, recurring: 0, scoped: true,
+        note: "Scope-based pricing" },
+    ]
+  },
+];
+const PLATFORMS = [
+  { id: "EH",  label: "Turnkey",  desc: "Pre-configured ATS with career site, HM portal and onboarding. Includes sandbox + 2 annual refreshes." },
+  { id: "CRM", label: "CRM Only", desc: "Core talent pipeline and candidate engagement platform." },
+];
+const OPP_TYPES = [
+  "End-to-End RPO",
+  "High Volume RPO",
+  "Early Careers RPO",
+  "CRM Only",
+  "RPO + Early Careers",
+];
+
+function usd(n) {
+  if (!n || n === 0) return "-";
+  return "$" + Number(n).toLocaleString("en-US");
+}
+function short(n) {
+  if (!n || n === 0) return "$0";
+  if (n >= 1000000) return "$" + (n / 1000000).toFixed(2) + "M";
+  if (n >= 1000) return "$" + Math.round(n / 1000) + "K";
+  return "$" + n;
+}
+function ehBand(fte) { return EH_BANDS.find(b => fte <= b.maxFTE) || EH_BANDS[EH_BANDS.length - 1]; }
+function crmBand(u) { return CRM_BANDS.find(b => u <= b.maxUsers) || CRM_BANDS[CRM_BANDS.length - 1]; }
+
+// ---- App -------------------------------------------------------------------
+function RandstadEstimator({ onBack }) {
+  const [screen, setScreen] = useState("config"); // config | proposal
+
+  const [deal, setDeal] = useState({
+    clientName: "",
+    oppType: "End-to-End RPO",
+    platform: "EH",
+    companySize: 2499,
+    recruiters: 15,
+    hmLic: 250,
+    migrations: 1,
+    years: 3,
+    currentSpend: 0,
+    preparedBy: "",
+    date: new Date().toISOString().slice(0, 10),
+    notes: "",
+  });
+  const [addons, setAddons] = useState({});
+
+  const setD = useCallback((k, v) => setDeal(d => ({ ...d, [k]: v })), []);
+  const tog   = useCallback((id) => setAddons(a => ({ ...a, [id]: !a[id] })), []);
+
+  const c = useMemo(() => {
+    // --- Discount tier (applied to all fees) ---
+    const disc    = getDiscount(deal.currentSpend);
+    const discPct = disc.pct;
+    const apply   = (v) => Math.round(v * (1 - discPct));
+
+    const hasEH  = deal.platform === "EH";
+    const hasCRM = deal.platform === "CRM";
+    const eh  = hasEH  ? ehBand(deal.companySize) : null;
+    const crm = hasCRM ? crmBand(deal.recruiters) : null;
+    const hmExtra = (hasEH && eh) ? hmAdditionalFee(eh.maxHM, deal.hmLic) : 0;
+    const pIA = apply((eh ? eh.implAv  : 0) + (crm ? crm.implAv  : 0));
+    const pIM = apply((eh ? eh.implMpg : 0) + (crm ? crm.implMpg : 0));
+    const pA  = apply(((eh ? eh.annual : 0) + (crm ? crm.annual  : 0)) + hmExtra);
+    let aIA = 0, aIM = 0, aR = 0, priced = [], scoped = [];
+    ADDON_GROUPS.forEach(g => g.items.forEach(item => {
+      if (!addons[item.id]) return;
+      if (item.scoped) { scoped.push(item); return; }
+      aIA += apply(item.implAv); aIM += apply(item.implMpg); aR += apply(item.recurring);
+      priced.push(item);
+    }));
+    const mImpl = deal.migrations * 15000;
+    const tImpl = pIA + pIM + aIA + aIM + mImpl;
+    const tAnn  = pA + aR;
+    const tco   = tImpl + tAnn * deal.years;
+    return { eh, crm, pIA, pIM, pA, aIA, aIM, aR, mImpl, tImpl, tAnn, tco, priced, scoped, hmExtra, disc, discPct };
+  }, [deal, addons]);
+
+  const exportCSV = () => {
+    const pl = (PLATFORMS.find(p => p.id === deal.platform) || {}).label || "";
+    const rows = [
+      ["Avature Dedicated Instance - Commercial Quote"],
+      ["Client / Programme", deal.clientName || "Draft"],
+      ["Opportunity Type",   deal.oppType],
+      ["Platform",           pl],
+      ["Contract Term",      deal.years + " years"],
+      ["Prepared by",        deal.preparedBy || ""],
+      ["Date",               deal.date],
+      [],
+      ["Cost Line", "One-Time (Impl $)", "Annual ($)", deal.years + "yr TCO ($)"],
+      ["Platform - Avature", c.pIA, c.pA,  c.pIA + c.pA * deal.years],
+      ["Platform - MPG",     c.pIM, 0,     c.pIM],
+      ["Add-On Impl",        c.aIA + c.aIM, 0, c.aIA + c.aIM],
+      ["Add-On Recurring",   0,     c.aR,  c.aR * deal.years],
+      ["Migrations (est.)",  c.mImpl, 0,   c.mImpl],
+      ["TOTAL",              c.tImpl, c.tAnn, c.tco],
+      [],
+      ["Included Add-Ons", "Impl", "Annual"],
+      ...c.priced.map(i => [i.name, i.implAv + i.implMpg, i.recurring]),
+      [],
+      ["Scoped Items (separate pricing required)"],
+      ...c.scoped.map(i => [i.name, "Based on scope"]),
+    ];
+    const csv = rows.map(r => r.map(v => '"' + String(v || "").replace(/"/g, '""') + '"').join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "Avature_Quote_" + (deal.clientName || "Draft").replace(/\s+/g, "_") + ".csv";
+    a.click();
+  };
+
+  if (screen === "proposal") {
+    return <Proposal deal={deal} c={c} onBack={() => setScreen("config")} exportCSV={exportCSV} />;
+  }
+  return <Config deal={deal} setD={setD} addons={addons} tog={tog} c={c} onView={() => setScreen("proposal")} />;
+}
+
+// ---- Config screen ---------------------------------------------------------
+function Config({ deal, setD, addons, tog, c, onView }) {
+  const [openGroup, setOpenGroup] = useState(ADDON_GROUPS.map(g => g.group));
+  const syne = { fontFamily: "'Work Sans', sans-serif" };
+
+  return (
+    <div style={{ fontFamily: "'Work Sans', sans-serif", background: "#08102A", minHeight: "100vh", color: "#E8EDF8" }}>
+      <style>{CSS}</style>
+
+      {/* Header */}
+      <div style={{ background: "#0D1B3E", borderBottom: "1px solid #1a2f5e", padding: "14px 24px" }}>
+        <div style={{ maxWidth: 1040, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 2 }}>
+              <span style={{ ...syne, fontWeight: 800, fontSize: 19, color: "#E8EDF8" }}>avature</span>
+              <span style={{ color: "#C8E653", fontSize: 16 }}>x</span>
+              <span style={{ ...syne, fontWeight: 700, fontSize: 19, color: "#C8E653" }}>randstad</span>
+            </div>
+            <div style={{ fontSize: 11, color: "#6a7fa8", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+              RPO Dedicated Instance - Quote Builder
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <button onClick={onBack}
+              style={{ padding: "10px 18px", borderRadius: 8, border: "1px solid #1a2f5e", background: "transparent", color: "#8898b8", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
+              ← Portal
+            </button>
+            <button onClick={onView}
+              style={{ padding: "10px 24px", borderRadius: 8, border: "none", background: "#C8E653", color: "#08102A", fontSize: 14, fontWeight: 700, cursor: "pointer", ...syne }}>
+              View Proposal
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1040, margin: "0 auto", padding: "28px 20px", display: "grid", gridTemplateColumns: "1fr 320px", gap: 24, alignItems: "start" }}>
+
+        {/* Left - form */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+
+          {/* Programme details */}
+          <Card title="Programme Details">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              <Fld label="Client / Programme Name">
+                <input style={INP} value={deal.clientName}
+                  onChange={e => setD("clientName", e.target.value)} placeholder="e.g. Qatar Airways RPO" />
+              </Fld>
+              <Fld label="Opportunity Type">
+                <select style={INP} value={deal.oppType} onChange={e => setD("oppType", e.target.value)}>
+                  {OPP_TYPES.map(o => <option key={o}>{o}</option>)}
+                </select>
+              </Fld>
+              <Fld label="Prepared By">
+                <input style={INP} value={deal.preparedBy}
+                  onChange={e => setD("preparedBy", e.target.value)} placeholder="Your name" />
+              </Fld>
+              <Fld label="Quote Date">
+                <input style={INP} type="date" value={deal.date}
+                  onChange={e => setD("date", e.target.value)} />
+              </Fld>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 2 }}>
+              <Fld label="Contract Term">
+                <div style={{ display: "flex", gap: 6 }}>
+                  {[1, 2, 3, 5].map(y => (
+                    <button key={y} onClick={() => setD("years", y)}
+                      style={{ flex: 1, padding: "8px 4px", borderRadius: 8, border: "1px solid " + (deal.years === y ? "#C8E653" : "#1a2f5e"), background: deal.years === y ? "#C8E653" : "#0D1B3E", color: deal.years === y ? "#08102A" : "#8898b8", fontSize: 13, fontFamily: "'Work Sans', sans-serif", cursor: "pointer", fontWeight: deal.years === y ? 700 : 400 }}>
+                      {y}yr
+                    </button>
+                  ))}
+                </div>
+              </Fld>
+              <Fld label="Legacy Migrations" note="Estimated $15,000 per migration">
+                <Counter value={deal.migrations} min={0} max={15} onChange={v => setD("migrations", v)} />
+              </Fld>
+            </div>
+
+            {/* Current Spend - Discount Selector */}
+            <div style={{ marginTop: 14, borderTop: "1px solid #1a2f5e", paddingTop: 14 }}>
+              <Fld label="Randstad Current Annual Spend with Avature">
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {[
+                    { label: "None / Unknown", val: 0 },
+                    { label: "$250K+",  val: 250000 },
+                    { label: "$500K+",  val: 500000 },
+                    { label: "$750K+",  val: 750000 },
+                    { label: "$1M+",    val: 1000000 },
+                  ].map(tier => {
+                    const active = deal.currentSpend === tier.val;
+                    const disc = getDiscount(tier.val);
+                    return (
+                      <button key={tier.val} onClick={() => setD("currentSpend", tier.val)}
+                        style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid " + (active ? "#C8E653" : "#1a2f5e"), background: active ? "#C8E653" : "#0D1B3E", color: active ? "#08102A" : "#8898b8", fontSize: 12, fontFamily: "'Work Sans', sans-serif", cursor: "pointer", fontWeight: active ? 700 : 400, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                        <span>{tier.label}</span>
+                        {disc.pct > 0 && <span style={{ fontSize: 10, fontWeight: 800, color: active ? "#08102A" : "#C8E653" }}>{disc.display} off</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                {c.discPct > 0 && (
+                  <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 10, background: "rgba(200,230,83,0.07)", border: "1px solid rgba(200,230,83,0.25)", borderRadius: 8, padding: "10px 14px" }}>
+                    <span style={{ fontSize: 18 }}>%</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#C8E653" }}>{c.disc.display} loyalty discount applied</div>
+                      <div style={{ fontSize: 11, color: "#8898b8" }}>All platform and add-on fees discounted. Migrations excluded.</div>
+                    </div>
+                  </div>
+                )}
+              </Fld>
+            </div>
+          </Card>
+
+          {/* Platform */}
+          <Card title="Platform Selection">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
+              {PLATFORMS.map(p => (
+                <button key={p.id} onClick={() => setD("platform", p.id)}
+                  style={{ background: "#080f25", border: "1px solid " + (deal.platform === p.id ? "#C8E653" : "#1a2f5e"), borderRadius: 10, padding: "14px 16px", cursor: "pointer", textAlign: "left", transition: "border-color 0.15s" }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: "#E8EDF8", marginBottom: 5 }}>{p.label}</div>
+                  <div style={{ fontSize: 11, color: "#6a7fa8", lineHeight: 1.4 }}>{p.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            {deal.platform === "EH" && (
+              <Fld label="Company / Division Size (FTE)">
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {EH_BANDS.map(b => (
+                    <button key={b.label}
+                      onClick={() => { setD("companySize", b.maxFTE); setD("recruiters", b.maxRec); if (deal.hmLic < b.maxHM) setD("hmLic", b.maxHM); }}
+                      style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid " + (deal.companySize === b.maxFTE ? "#C8E653" : "#1a2f5e"), background: deal.companySize === b.maxFTE ? "#C8E653" : "#0D1B3E", color: deal.companySize === b.maxFTE ? "#08102A" : "#8898b8", fontSize: 12, fontFamily: "'Work Sans', sans-serif", cursor: "pointer", fontWeight: deal.companySize === b.maxFTE ? 700 : 400 }}>
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+                {c.eh && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#6a7fa8" }}>
+                    Band includes up to <strong style={{ color: "#E8EDF8" }}>{c.eh.maxRec} recruiter</strong> and <strong style={{ color: "#E8EDF8" }}>{c.eh.maxHM} HM</strong> licences
+                  </div>
+                )}
+              </Fld>
+            )}
+
+            {deal.platform === "CRM" && (
+              <Fld label="CRM User Licences">
+                <Slider value={deal.recruiters} min={5} max={200} step={5} onChange={v => setD("recruiters", v)} />
+              </Fld>
+            )}
+
+            {deal.platform === "EH" && (
+              <Fld label={"Hiring Manager Licences" + (c.eh && deal.hmLic <= c.eh.maxHM ? "  - included in band" : "  - additional licences apply")}>
+                <Slider value={deal.hmLic} min={50} max={5000} step={50} onChange={v => setD("hmLic", v)} />
+                {c.eh && deal.hmLic > c.eh.maxHM && (
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#f4b942" }}>
+                    {deal.hmLic - c.eh.maxHM} HM users above band inclusion - additional <strong>{usd(c.hmExtra)}/yr</strong>
+                  </div>
+                )}
+              </Fld>
+            )}
+
+            {(c.eh || c.crm) && (
+              <div style={{ background: "#080f25", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#6a7fa8", display: "flex", gap: 20, flexWrap: "wrap" }}>
+                {c.eh  && <span>Band: <strong style={{ color: "#E8EDF8" }}>{c.eh.label}</strong></span>}
+                {c.crm && <span>CRM: <strong style={{ color: "#E8EDF8" }}>up to {c.crm.maxUsers} users</strong></span>}
+                <span>Impl: <strong style={{ color: "#C8E653" }}>{usd(c.pIA + c.pIM)}</strong></span>
+                <span>Annual: <strong style={{ color: "#C8E653" }}>{usd(c.pA)}</strong></span>
+              </div>
+            )}
+          </Card>
+
+          {/* Add-ons */}
+          <Card title={"Add-Ons" + (c.priced.length + c.scoped.length > 0 ? "  +" + (c.priced.length + c.scoped.length) + " selected" : "")}>
+            <div style={{ fontSize: 12, color: "#6a7fa8", marginBottom: 10 }}>
+              Running total: <strong style={{ color: "#E8EDF8" }}>{usd(c.aIA + c.aIM)}</strong> impl
+              {c.aR > 0 && <> + <strong style={{ color: "#C8E653" }}>{usd(c.aR)}/yr</strong> recurring</>}
+              {c.scoped.length > 0 && <span style={{ color: "#f4b942" }}> + {c.scoped.length} scoped</span>}
+            </div>
+            {ADDON_GROUPS.map(g => {
+              const cnt    = g.items.filter(i => addons[i.id]).length;
+              const isOpen = openGroup.includes(g.group);
+              return (
+                <div key={g.group} style={{ border: "1px solid #1a2f5e", borderRadius: 8, overflow: "hidden", marginBottom: 6 }}>
+                  <button onClick={() => setOpenGroup(prev => prev.includes(g.group) ? prev.filter(x => x !== g.group) : [...prev, g.group])}
+                    style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 14px", background: "#0D1B3E", border: "none", color: "#E8EDF8", fontSize: 13, fontWeight: 600, fontFamily: "'Work Sans', sans-serif", cursor: "pointer" }}>
+                    <span>{g.group}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {cnt > 0 && <span style={{ background: "#C8E653", color: "#08102A", borderRadius: 8, padding: "1px 7px", fontSize: 11, fontWeight: 800 }}>{cnt}</span>}
+                      <span style={{ color: "#6a7fa8", fontSize: 11 }}>{isOpen ? "^" : "v"}</span>
+                    </span>
+                  </button>
+                  {isOpen && g.items.map(item => {
+                    const on = !!addons[item.id];
+                    return (
+                      <div key={item.id} onClick={() => tog(item.id)}
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", borderTop: "1px solid #1a2f5e", cursor: "pointer", background: on ? "#0f1f42" : "#080f25" }}>
+                        <div style={{ width: 16, height: 16, borderRadius: 3, border: "2px solid " + (on ? "#C8E653" : "#1a2f5e"), background: on ? "#C8E653" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#08102A", flexShrink: 0, fontWeight: 800 }}>{on ? "v" : ""}</div>
+                        <div style={{ flex: 1 }}>
+                          <span style={{ fontSize: 13, color: "#E8EDF8" }}>{item.name}</span>
+                          {item.note && <span style={{ fontSize: 11, color: "#6a7fa8", marginLeft: 6 }}>({item.note})</span>}
+                        </div>
+                        <div style={{ textAlign: "right", fontSize: 12, minWidth: 110 }}>
+                          {item.scoped
+                            ? <span style={{ color: "#f4b942", fontSize: 11 }}>Scope-based</span>
+                            : <>
+                              {(item.implAv + item.implMpg) > 0 && <div style={{ color: "#8898b8" }}>Impl: {usd(item.implAv + item.implMpg)}</div>}
+                              {item.recurring > 0 && <div style={{ color: "#C8E653" }}>+{usd(item.recurring)}/yr</div>}
+                            </>
+                          }
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </Card>
+
+          {/* Notes */}
+          <Card title="Notes / Assumptions">
+            <textarea style={{ ...INP, minHeight: 80, resize: "vertical", lineHeight: 1.5 }}
+              value={deal.notes} onChange={e => setD("notes", e.target.value)}
+              placeholder="Add any assumptions, exclusions or discovery items here..." />
+          </Card>
+        </div>
+
+        {/* Right - live summary */}
+        <div style={{ position: "sticky", top: 20, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ background: "#0D1B3E", border: "1px solid #1a2f5e", borderRadius: 12, padding: "20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+              <div style={{ fontSize: 11, color: "#6a7fa8", textTransform: "uppercase", letterSpacing: "0.07em" }}>Live Quote Summary</div>
+              {c.discPct > 0 && (
+                <div style={{ background: "#C8E653", color: "#08102A", borderRadius: 6, padding: "3px 9px", fontSize: 11, fontWeight: 800 }}>{c.disc.display} OFF</div>
+              )}
+            </div>
+            {c.discPct > 0 && (
+              <div style={{ fontSize: 11, color: "#8898b8", marginBottom: 10, padding: "7px 10px", background: "rgba(200,230,83,0.06)", borderRadius: 6, border: "1px solid rgba(200,230,83,0.2)" }}>
+                Loyalty discount ({c.disc.label} spend) - all fees discounted
+              </div>
+            )}
+            {[
+              ["One-Time (Impl)", c.tImpl, false],
+              ["Annual (Yr 1)",   c.tAnn,  true],
+              [deal.years + "yr TCO", c.tco, false],
+            ].map(([label, val, ac]) => (
+              <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#080f25", borderRadius: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 13, color: "#6a7fa8" }}>{label}</span>
+                <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 17, fontWeight: 800, color: ac ? "#C8E653" : "#E8EDF8" }}>{usd(val) === "-" ? "$0" : usd(val)}</span>
+              </div>
+            ))}
+
+            {(c.priced.length > 0 || c.scoped.length > 0) && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #1a2f5e" }}>
+                <div style={{ fontSize: 11, color: "#6a7fa8", marginBottom: 8 }}>Selected add-ons</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                  {c.priced.map(i => (
+                    <span key={i.id} style={{ fontSize: 11, background: "rgba(200,230,83,0.08)", border: "1px solid rgba(200,230,83,0.2)", color: "#C8E653", borderRadius: 5, padding: "2px 7px" }}>{i.name}</span>
+                  ))}
+                  {c.scoped.map(i => (
+                    <span key={i.id} style={{ fontSize: 11, background: "rgba(244,185,66,0.08)", border: "1px solid rgba(244,185,66,0.25)", color: "#f4b942", borderRadius: 5, padding: "2px 7px" }}>{i.name}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <button onClick={onView}
+            style={{ width: "100%", padding: "13px", borderRadius: 10, border: "none", background: "#C8E653", color: "#08102A", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
+            View Proposal
+          </button>
+          <div style={{ fontSize: 11, color: "#4a5a78", textAlign: "center", lineHeight: 1.5 }}>
+            Proposal includes print-ready PDF layout and CSV export
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Proposal screen -------------------------------------------------------
+function Proposal({ deal, c, onBack, exportCSV }) {
+  const syne = { fontFamily: "'Work Sans', sans-serif" };
+  const pl   = (PLATFORMS.find(p => p.id === deal.platform) || {}).label || deal.platform;
+
+  const lines = [
+    { label: "Platform licence - Avature",              impl: c.pIA,         ann: c.pA   },
+    { label: "Platform implementation - MPG Services",  impl: c.pIM,         ann: 0      },
+    c.aIA + c.aIM > 0
+      ? { label: "Add-on implementation (" + c.priced.length + " modules)", impl: c.aIA + c.aIM, ann: 0 }
+      : null,
+    c.aR > 0
+      ? { label: "Add-on recurring licences",           impl: 0,             ann: c.aR   }
+      : null,
+    deal.migrations > 0
+      ? { label: "Legacy data migration (" + deal.migrations + " x est. $15,000)", impl: c.mImpl, ann: 0 }
+      : null,
+  ].filter(Boolean);
+
+  return (
+    <div style={{ fontFamily: "'Work Sans', sans-serif", background: "#f4f6fa", minHeight: "100vh", color: "#0D1B3E" }}>
+      <style>{CSS_PRINT}</style>
+
+      {/* Screen-only toolbar */}
+      <div className="no-print" style={{ background: "#0D1B3E", padding: "12px 32px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <svg width="90" height="24" viewBox="0 0 90 24" fill="none"><text x="0" y="19" fontFamily="'Work Sans', sans-serif" fontWeight="800" fontSize="19" fill="#E8EDF8">avature</text></svg>
+          <span style={{ color: "#C8E653", fontSize: 14 }}>x</span>
+          <svg width="90" height="24" viewBox="0 0 90 24" fill="none"><text x="0" y="19" fontFamily="'Work Sans', sans-serif" fontWeight="700" fontSize="19" fill="#C8E653">randstad</text></svg>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={onBack}
+            style={{ padding: "8px 18px", borderRadius: 8, border: "1px solid #3a5080", background: "transparent", color: "#E8EDF8", fontSize: 13, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
+            Edit Quote
+          </button>
+          <button onClick={exportCSV}
+            style={{ padding: "8px 18px", borderRadius: 8, border: "1px solid #C8E653", background: "transparent", color: "#C8E653", fontSize: 13, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
+            Download CSV
+          </button>
+          <button onClick={() => window.print()}
+            style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "#C8E653", color: "#08102A", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
+            Save as PDF
+          </button>
+        </div>
+      </div>
+
+      {/* Printable proposal page */}
+      <div id="proposal" style={{ maxWidth: 820, margin: "0 auto", padding: "40px 40px 60px" }}>
+
+        {/* Proposal header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 36, paddingBottom: 24, borderBottom: "2px solid #0D1B3E" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
+              <svg width="120" height="30" viewBox="0 0 120 30" fill="none"><text x="0" y="24" fontFamily="'Work Sans', sans-serif" fontWeight="800" fontSize="24" fill="#0D1B3E">avature</text></svg>
+              <span style={{ color: "#8a9040", fontSize: 18, fontWeight: 300 }}>x</span>
+              <svg width="110" height="30" viewBox="0 0 110 30" fill="none"><text x="0" y="24" fontFamily="'Work Sans', sans-serif" fontWeight="700" fontSize="24" fill="#8a9040">randstad</text></svg>
+            </div>
+            <div style={{ fontSize: 11, color: "#6a7fa8", letterSpacing: "0.1em", textTransform: "uppercase" }}>
+              Commercial Proposal - Dedicated RPO Instance
+            </div>
+          </div>
+          <div style={{ textAlign: "right", fontSize: 12, color: "#6a7fa8", lineHeight: 1.8 }}>
+            {deal.preparedBy && <div><strong style={{ color: "#0D1B3E" }}>Prepared by:</strong> {deal.preparedBy}</div>}
+            <div><strong style={{ color: "#0D1B3E" }}>Date:</strong> {deal.date}</div>
+            <div><strong style={{ color: "#0D1B3E" }}>Ref:</strong> {(deal.clientName || "Draft").replace(/\s+/g, "-").toUpperCase()}-{deal.date.replace(/-/g, "")}</div>
+          </div>
+        </div>
+
+        {/* Title block */}
+        <div style={{ background: "#0D1B3E", borderRadius: 12, padding: "28px 32px", marginBottom: 28, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 11, color: "#C8E653", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 6 }}>
+              {deal.oppType}
+            </div>
+            <div style={{ ...syne, fontWeight: 800, fontSize: 26, color: "#E8EDF8", marginBottom: 4 }}>
+              {deal.clientName || "Client Name TBC"}
+            </div>
+            <div style={{ fontSize: 13, color: "#8898b8" }}>
+              {pl} | {deal.years}-year contract
+              {deal.migrations > 0 && " | " + deal.migrations + " migration" + (deal.migrations > 1 ? "s" : "")}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 12 }}>
+            <div style={{ textAlign: "center", background: "rgba(200,230,83,0.1)", border: "1px solid rgba(200,230,83,0.25)", borderRadius: 10, padding: "14px 18px" }}>
+              <div style={{ fontSize: 10, color: "#8898b8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>Annual</div>
+              <div style={{ ...syne, fontSize: 22, fontWeight: 800, color: "#C8E653" }}>{short(c.tAnn)}</div>
+            </div>
+            <div style={{ textAlign: "center", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 10, padding: "14px 18px" }}>
+              <div style={{ fontSize: 10, color: "#8898b8", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>{deal.years}yr TCO</div>
+              <div style={{ ...syne, fontSize: 22, fontWeight: 800, color: "#E8EDF8" }}>{short(c.tco)}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3 summary cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 28 }}>
+          {[
+            ["One-Time Implementation", c.tImpl, "Total platform build and migration fees"],
+            ["Annual Recurring",        c.tAnn,  "Platform licences + selected add-ons"],
+            [deal.years + "-Year TCO",  c.tco,   "Total cost of ownership over contract term"],
+          ].map(([label, val, sub]) => (
+            <div key={label} style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 10, padding: "16px 18px" }}>
+              <div style={{ fontSize: 10, color: "#8898b8", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>{label}</div>
+              <div style={{ ...syne, fontSize: 22, fontWeight: 800, color: "#0D1B3E", marginBottom: 4 }}>{usd(val) === "-" ? "$0" : usd(val)}</div>
+              <div style={{ fontSize: 11, color: "#8898b8" }}>{sub}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Line items */}
+        <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
+          <div style={{ padding: "14px 20px", background: "#0D1B3E" }}>
+            <span style={{ ...syne, fontWeight: 700, fontSize: 14, color: "#E8EDF8" }}>Commercial Breakdown</span>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 1fr 1fr", padding: "10px 20px", borderBottom: "1px solid #dde3ef", background: "#f4f6fa" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#8898b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>Cost Line</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#8898b8", textTransform: "uppercase", letterSpacing: "0.06em", textAlign: "right" }}>One-Time</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#8898b8", textTransform: "uppercase", letterSpacing: "0.06em", textAlign: "right" }}>Annual</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#8898b8", textTransform: "uppercase", letterSpacing: "0.06em", textAlign: "right" }}>{deal.years}yr TCO</span>
+          </div>
+          {lines.map((row, i) => (
+            <div key={i} style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 1fr 1fr", padding: "13px 20px", borderBottom: "1px solid #dde3ef", background: i % 2 === 1 ? "#fafbfd" : "#fff" }}>
+              <span style={{ fontSize: 13, color: "#0D1B3E" }}>{row.label}</span>
+              <span style={{ fontSize: 13, color: "#4a5a78", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{row.impl > 0 ? usd(row.impl) : "-"}</span>
+              <span style={{ fontSize: 13, color: "#4a5a78", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{row.ann > 0 ? usd(row.ann) : "-"}</span>
+              <span style={{ fontSize: 13, color: "#4a5a78", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{usd(row.impl + row.ann * deal.years)}</span>
+            </div>
+          ))}
+          <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 1fr 1fr", padding: "14px 20px", background: "#0D1B3E" }}>
+            <span style={{ ...syne, fontWeight: 800, fontSize: 14, color: "#C8E653" }}>TOTAL</span>
+            <span style={{ ...syne, fontWeight: 700, fontSize: 14, color: "#E8EDF8", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{usd(c.tImpl)}</span>
+            <span style={{ ...syne, fontWeight: 700, fontSize: 14, color: "#C8E653", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{usd(c.tAnn)}</span>
+            <span style={{ ...syne, fontWeight: 700, fontSize: 14, color: "#E8EDF8", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{usd(c.tco)}</span>
+          </div>
+          {c.discPct > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 16px", background: "rgba(200,230,83,0.07)", borderTop: "1px solid rgba(200,230,83,0.25)", borderBottomLeftRadius: 10, borderBottomRightRadius: 10 }}>
+              <span style={{ fontSize: 12, color: "#C8E653", fontWeight: 700 }}>Loyalty Discount Applied - Randstad {c.disc.label} annual spend</span>
+              <span style={{ fontSize: 12, color: "#C8E653", fontWeight: 700 }}>{c.disc.display} off all platform &amp; add-on fees</span>
+            </div>
+          )}
+        </div>
+
+        {/* Configuration summary */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+          <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, padding: "18px 20px" }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Configuration</div>
+            {[
+              ["Platform",     pl],
+              ["Opportunity",  deal.oppType],
+              ...(deal.platform === "EH" ? [["Company / Division Size", c.eh ? c.eh.label : "-"]] : []),
+              ...(deal.platform === "EH" ? [["Recruiter Licences (max)", c.eh ? c.eh.maxRec : "-"]] : []),
+              ...(deal.platform === "CRM" ? [["CRM User Licences", deal.recruiters]] : []),
+              ...(deal.platform === "EH" ? [["HM Licences", deal.hmLic + (c.eh && deal.hmLic > c.eh.maxHM ? " (" + (deal.hmLic - c.eh.maxHM) + " additional)" : " (included)") ]] : []),
+              ...(c.crm ? [["CRM Band",  "Up to " + c.crm.maxUsers + " users"]] : []),
+              ["Contract Term", deal.years + " years"],
+              ...(deal.migrations > 0 ? [["Migrations", deal.migrations]] : []),
+            ].map(([k, v]) => (
+              <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid #eef0f5", fontSize: 13 }}>
+                <span style={{ color: "#8898b8" }}>{k}</span>
+                <span style={{ color: "#0D1B3E", fontWeight: 500 }}>{v}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {c.priced.length > 0 && (
+              <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, padding: "18px 20px", flex: 1 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Included Add-Ons</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                  {c.priced.map(i => (
+                    <span key={i.id} style={{ fontSize: 11, background: "#f0f4e8", border: "1px solid #c8d87a", color: "#3a4a10", borderRadius: 5, padding: "3px 9px" }}>{i.name}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {c.scoped.length > 0 && (
+              <div style={{ background: "#fffdf0", border: "1px solid #e8d87a", borderRadius: 12, padding: "18px 20px" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#7a5a10", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Scope-Based Items</div>
+                {c.scoped.map(i => (
+                  <div key={i.id} style={{ fontSize: 13, color: "#5a4010", padding: "4px 0", borderBottom: "1px solid #f0e8a0", display: "flex", justifyContent: "space-between" }}>
+                    <span>{i.name}</span>
+                    <span style={{ fontSize: 11, color: "#9a7a30" }}>Separate scoping required</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Notes */}
+        {deal.notes && (
+          <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, padding: "18px 20px", marginBottom: 24 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Notes & Assumptions</div>
+            <div style={{ fontSize: 13, color: "#4a5a78", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{deal.notes}</div>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div style={{ borderTop: "2px solid #0D1B3E", paddingTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 11, color: "#8898b8", lineHeight: 1.6 }}>
+            Indicative pricing only. Subject to final scoping and contract terms.<br />
+            Migrations estimated at $15,000 per tenant. Scoped items require separate assessment.<br />
+            All fees in USD.
+          </div>
+          <div style={{ ...syne, fontSize: 13, fontWeight: 700, color: "#0D1B3E", textAlign: "right" }}>
+            avature x randstad<br />
+            <span style={{ fontFamily: "'Work Sans', sans-serif", fontSize: 11, fontWeight: 400, color: "#8898b8" }}>Confidential</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- Shared UI components --------------------------------------------------
+function Card({ title, children }) {
+  return (
+    <div style={{ background: "#0D1B3E", border: "1px solid #1a2f5e", borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ padding: "11px 16px", background: "#08102A", borderBottom: "1px solid #1a2f5e" }}>
+        <span style={{ fontFamily: "'Work Sans', sans-serif", fontWeight: 700, fontSize: 13, color: "#E8EDF8" }}>{title}</span>
+      </div>
+      <div style={{ padding: "18px 16px", display: "flex", flexDirection: "column", gap: 14 }}>{children}</div>
+    </div>
+  );
+}
+function Fld({ label, note, children }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <label style={{ fontSize: 11, fontWeight: 600, color: "#8898b8", textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</label>
+      {children}
+      {note && <span style={{ fontSize: 11, color: "#6a7fa8" }}>{note}</span>}
+    </div>
+  );
+}
+function Slider({ value, min, max, step, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={e => onChange(Number(e.target.value))} style={{ flex: 1 }} />
+      <input type="number" value={value} min={min} max={max} step={step}
+        onChange={e => onChange(Math.min(max, Math.max(min, Number(e.target.value))))}
+        style={{ width: 64, background: "#0D1B3E", border: "1px solid #1a2f5e", borderRadius: 6, padding: "7px 8px", color: "#C8E653", fontSize: 13, fontWeight: 700, fontFamily: "'Work Sans', sans-serif", textAlign: "center", outline: "none" }} />
+    </div>
+  );
+}
+function Counter({ value, min, max, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+      <button onClick={() => onChange(Math.max(min, value - 1))}
+        style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid #1a2f5e", background: "#080f25", color: "#E8EDF8", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Work Sans', sans-serif", lineHeight: 1 }}>-</button>
+      <span style={{ fontFamily: "'Work Sans', sans-serif", fontWeight: 800, fontSize: 20, color: "#C8E653", minWidth: 28, textAlign: "center" }}>{value}</span>
+      <button onClick={() => onChange(Math.min(max, value + 1))}
+        style={{ width: 30, height: 30, borderRadius: 6, border: "1px solid #1a2f5e", background: "#080f25", color: "#E8EDF8", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Work Sans', sans-serif", lineHeight: 1 }}>+</button>
+    </div>
+  );
+}
+
+const INP = { background: "#080f25", border: "1px solid #1a2f5e", borderRadius: 8, padding: "9px 12px", color: "#E8EDF8", fontSize: 13, fontFamily: "'Work Sans', sans-serif", outline: "none", width: "100%" };
+
+const CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;background:#1a2f5e;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#C8E653;cursor:pointer}
+  input[type=number]{-moz-appearance:textfield}
+  input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+  select option{background:#0D1B3E;color:#E8EDF8}
+`;
+
+const CSS_PRINT = `
+  @import url('https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700;800&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  @media print{
+    .no-print{display:none!important}
+    body{background:#fff!important}
+    #proposal{padding:20px!important;max-width:100%!important}
+  }
+`;
