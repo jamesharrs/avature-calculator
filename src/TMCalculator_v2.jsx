@@ -3899,7 +3899,7 @@ function RandstadEstimator({ onBack }) {
     const pIA = deal.implType === "gold_copy"
       ? 5000 + (deal.extraRecruiters * 3000)   // Turnkey: flat base + $3k per extra recruiter
       : apply((eh ? eh.implAv  : 0) + (crm ? crm.implAv  : 0));  // Avature: standard rate card
-    const pIM = 0; // MPG fees removed
+
     const pA  = apply(((eh ? eh.annual : 0) + (crm ? crm.annual  : 0)) + hmExtra);
     let aIA = 0, aR = 0, priced = [], scoped = [];
     ADDON_GROUPS.forEach(g => g.items.forEach(item => {
