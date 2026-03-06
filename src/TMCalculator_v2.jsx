@@ -3730,10 +3730,9 @@ const CRM_BANDS = [
   { maxUsers: 150, implAv: 75000, implMpg: 14100, annual: 286450 },
   { maxUsers: 200, implAv: 98000, implMpg: 14100, annual: 346800 },
 ];
-// Add-on pricing sourced directly from Avature Commercial Catalog (ATS + CRM product pages, March 2025)
-// impl = implementation fee (floor / Avature portion). implMpg = MPG services impl fee.
-// recurring = annual licence fee. scoped = true means price on application.
-// "both" = appears in both ATS and CRM catalogs at same price
+// Add-on pricing sourced from Avature Commercial Catalog (ATS + CRM product pages, March 2025)
+// impl = implementation fee (Avature portion). recurring = annual licence fee.
+// scoped = true means price on application. "both" = appears in both ATS and CRM catalogs
 const ADDON_GROUPS = [
   {
     group: "Career Site",
@@ -3743,7 +3742,7 @@ const ADDON_GROUPS = [
       { id: "ai_job_rec",    name: "Job Recommendations on Portals",                 implAv: 5500, implMpg: 0, recurring: 0,
         note: "Both. ATS standard career site customers: needs scoping. Career Marketplace customers: included." },
       { id: "internal_site", name: "Internal Standard Careers Site",                 implAv: 7000, implMpg: 0, recurring: 8000,
-        note: "ATS (from MPG rate card)" },
+        note: "ATS only" },
       { id: "vanity_urls",   name: "Vanity URLs for Portals",                        implAv: 1500, implMpg: 0, recurring: 0,
         note: "ATS only" },
     ]
@@ -3823,9 +3822,23 @@ const ADDON_GROUPS = [
   },
 ];
 const PLATFORMS = [
-  { id: "EH",  label: "Turnkey",  desc: "Pre-configured ATS with career site, HM portal and onboarding. Includes sandbox + 2 annual refreshes." },
+  { id: "EH",  label: "Gold Copy", desc: "Randstad Gold Copy — pre-configured ATS with career site, HM portal and onboarding. Includes sandbox + 2 annual refreshes." },
   { id: "CRM", label: "CRM Only", desc: "Core talent pipeline and candidate engagement platform." },
 ];
+// ── Gold Copy Included Capabilities (from Randstad RFP proposal) ──────────────
+const GOLD_COPY_INCLUDED = [
+  { category: "Platform",        item: "Career Marketplace",                    note: "Full candidate-facing job marketplace" },
+  { category: "Platform",        item: "Permanent Sandbox",                     note: "Includes 2 annual refreshes" },
+  { category: "Reporting",       item: "Landing Page Builder (up to 100)",      note: "Includes Theme Builder for Landing Pages" },
+  { category: "Reporting",       item: "Custom Report Builder (up to 100)",     note: "Up to 100 active reports" },
+  { category: "AI",              item: "Avature Matching & Recommendation",     note: "AI-powered candidate matching" },
+  { category: "Scheduling",      item: "Auto-Scheduler",                        note: "Both ATS & CRM" },
+  { category: "Scheduling",      item: "Timeslots (Self-Scheduling)",           note: "With availability portal + branded theme" },
+  { category: "Integrations",    item: "SSO (SAML 2.0)",                        note: "Single sign-on integration" },
+  { category: "Integrations",    item: "DocuSign",                              note: "eSignature integration" },
+];
+
+
 const OPP_TYPES = [
   "End-to-End RPO",
   "High Volume RPO",
@@ -3861,6 +3874,8 @@ function RandstadEstimator({ onBack }) {
     migrations: 1,
     years: 3,
     currentSpend: 0,
+    implType: "avature",     // "avature" | "gold_copy"
+    extraRecruiters: 0,      // gold_copy only — additional recruiter licences at $3,000/user
     preparedBy: "",
     date: new Date().toISOString().slice(0, 10),
     notes: "",
@@ -3881,21 +3896,23 @@ function RandstadEstimator({ onBack }) {
     const eh  = hasEH  ? ehBand(deal.companySize) : null;
     const crm = hasCRM ? crmBand(deal.recruiters) : null;
     const hmExtra = (hasEH && eh) ? hmAdditionalFee(eh.maxHM, deal.hmLic) : 0;
-    const pIA = apply((eh ? eh.implAv  : 0) + (crm ? crm.implAv  : 0));
-    const pIM = apply((eh ? eh.implMpg : 0) + (crm ? crm.implMpg : 0));
+    const pIA = deal.implType === "gold_copy"
+      ? 5000 + (deal.extraRecruiters * 3000)   // Turnkey: flat base + $3k per extra recruiter
+      : apply((eh ? eh.implAv  : 0) + (crm ? crm.implAv  : 0));  // Avature: standard rate card
+    const pIM = 0; // MPG fees removed
     const pA  = apply(((eh ? eh.annual : 0) + (crm ? crm.annual  : 0)) + hmExtra);
-    let aIA = 0, aIM = 0, aR = 0, priced = [], scoped = [];
+    let aIA = 0, aR = 0, priced = [], scoped = [];
     ADDON_GROUPS.forEach(g => g.items.forEach(item => {
       if (!addons[item.id]) return;
       if (item.scoped) { scoped.push(item); return; }
-      aIA += apply(item.implAv); aIM += apply(item.implMpg); aR += apply(item.recurring);
+      aIA += apply(item.implAv); aR += apply(item.recurring);
       priced.push(item);
     }));
     const mImpl = deal.migrations * 15000;
-    const tImpl = pIA + pIM + aIA + aIM + mImpl;
+    const tImpl = pIA + aIA + mImpl;
     const tAnn  = pA + aR;
     const tco   = tImpl + tAnn * deal.years;
-    return { eh, crm, pIA, pIM, pA, aIA, aIM, aR, mImpl, tImpl, tAnn, tco, priced, scoped, hmExtra, disc, discPct };
+    return { eh, crm, pIA, pA, aIA, aR, mImpl, tImpl, tAnn, tco, priced, scoped, hmExtra, disc, discPct, implType: deal.implType, extraRecruiters: deal.extraRecruiters };
   }, [deal, addons]);
 
   const exportCSV = () => {
@@ -3911,14 +3928,14 @@ function RandstadEstimator({ onBack }) {
       [],
       ["Cost Line", "One-Time (Impl $)", "Annual ($)", deal.years + "yr TCO ($)"],
       ["Platform - Avature", c.pIA, c.pA,  c.pIA + c.pA * deal.years],
-      ["Platform - MPG",     c.pIM, 0,     c.pIM],
-      ["Add-On Impl",        c.aIA + c.aIM, 0, c.aIA + c.aIM],
+
+      ["Add-On Impl",        c.aIA, 0, c.aIA],
       ["Add-On Recurring",   0,     c.aR,  c.aR * deal.years],
       ["Migrations (est.)",  c.mImpl, 0,   c.mImpl],
       ["TOTAL",              c.tImpl, c.tAnn, c.tco],
       [],
       ["Included Add-Ons", "Impl", "Annual"],
-      ...c.priced.map(i => [i.name, i.implAv + i.implMpg, i.recurring]),
+      ...c.priced.map(i => [i.name, i.implAv, i.recurring]),
       [],
       ["Scoped Items (separate pricing required)"],
       ...c.scoped.map(i => [i.name, "Based on scope"]),
@@ -3938,6 +3955,37 @@ function RandstadEstimator({ onBack }) {
 }
 
 // ---- Config screen ---------------------------------------------------------
+
+// ── Gold Copy Included Capabilities Component ────────────────────────────────
+function GoldCopyIncluded() {
+  const categories = [...new Set(GOLD_COPY_INCLUDED.map(i => i.category))];
+  const syne = { fontFamily: "'Work Sans', sans-serif" };
+  return (
+    <div style={{ background: "#080f25", border: "1px solid #1a5c3a", borderRadius: 12, overflow: "hidden", marginTop: 16 }}>
+      <div style={{ padding: "10px 16px", background: "#0a2a1a", borderBottom: "1px solid #1a5c3a", display: "flex", alignItems: "center", gap: 8 }}>
+        <span style={{ fontSize: 14 }}>✅</span>
+        <span style={{ ...syne, fontWeight: 700, fontSize: 13, color: "#4ADE80" }}>Included Capabilities (Gold Copy)</span>
+        <span style={{ fontSize: 11, color: "#2a9a5a", background: "#0f3a1e", border: "1px solid #1a5c3a", borderRadius: 20, padding: "2px 10px", marginLeft: "auto" }}>{GOLD_COPY_INCLUDED.length} items included</span>
+      </div>
+      <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
+        {categories.map(cat => (
+          <div key={cat}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#2a9a5a", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>{cat}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+              {GOLD_COPY_INCLUDED.filter(i => i.category === cat).map(i => (
+                <div key={i.item} style={{ background: "#0a2a1a", border: "1px solid #1a5c3a", borderRadius: 8, padding: "5px 12px", display: "flex", flexDirection: "column", gap: 2 }}>
+                  <span style={{ fontSize: 12, color: "#86EFAC", fontWeight: 600 }}>✓ {i.item}</span>
+                  <span style={{ fontSize: 10, color: "#2a9a5a" }}>{i.note}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Config({ deal, setD, addons, tog, c, onView, onBack }) {
   const [openGroup, setOpenGroup] = useState(ADDON_GROUPS.map(g => g.group));
   const syne = { fontFamily: "'Work Sans', sans-serif" };
@@ -4101,8 +4149,43 @@ function Config({ deal, setD, addons, tog, c, onView, onBack }) {
               <div style={{ background: "#080f25", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#6a7fa8", display: "flex", gap: 20, flexWrap: "wrap" }}>
                 {c.eh  && <span>Band: <strong style={{ color: "#E8EDF8" }}>{c.eh.label}</strong></span>}
                 {c.crm && <span>CRM: <strong style={{ color: "#E8EDF8" }}>up to {c.crm.maxUsers} users</strong></span>}
-                <span>Impl: <strong style={{ color: "#C8E653" }}>{usd(c.pIA + c.pIM)}</strong></span>
+                <span>Impl: <strong style={{ color: "#C8E653" }}>{usd(c.pIA)}</strong></span>
                 <span>Annual: <strong style={{ color: "#C8E653" }}>{usd(c.pA)}</strong></span>
+              </div>
+            )}
+          </Card>
+
+          {/* Implementation Type */}
+          <Card title="Implementation Type">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              {[
+                { id: "avature",  label: "Avature Implementation", desc: "Full Avature-led implementation. Standard rate card fees apply." },
+                { id: "gold_copy", label: "Randstad Gold Copy", desc: "Gold Copy implementation. Base fee $5,000 + $3,000 per additional recruiter licence." },
+              ].map(opt => (
+                <button key={opt.id} onClick={() => setD("implType", opt.id)}
+                  style={{ background: "#080f25", border: "1px solid " + (deal.implType === opt.id ? "#C8E653" : "#1a2f5e"), borderRadius: 10, padding: "14px 16px", cursor: "pointer", textAlign: "left", transition: "border-color 0.15s" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
+                    <div style={{ width: 14, height: 14, borderRadius: "50%", border: "2px solid " + (deal.implType === opt.id ? "#C8E653" : "#374151"), background: deal.implType === opt.id ? "#C8E653" : "transparent", flexShrink: 0 }} />
+                    <span style={{ fontWeight: 700, fontSize: 13, color: "#E8EDF8" }}>{opt.label}</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "#6a7fa8", lineHeight: 1.4, paddingLeft: 22 }}>{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            {deal.implType === "gold_copy" && (
+              <div style={{ marginTop: 16 }}>
+                <Fld label="Additional Recruiter Licences (Gold Copy)" note={"$3,000 per additional user · base $5,000 included"}>
+                  <Slider value={deal.extraRecruiters} min={0} max={50} step={1} onChange={v => setD("extraRecruiters", v)} />
+                </Fld>
+                <div style={{ marginTop: 10, background: "#080f25", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "#6a7fa8", display: "flex", gap: 20, flexWrap: "wrap" }}>
+                  <span>Base: <strong style={{ color: "#E8EDF8" }}>$5,000</strong></span>
+                  {deal.extraRecruiters > 0 && (
+                    <span>+ {deal.extraRecruiters} users × $3,000 = <strong style={{ color: "#C8E653" }}>${(deal.extraRecruiters * 3000).toLocaleString()}</strong></span>
+                  )}
+                  <span>Total impl: <strong style={{ color: "#C8E653" }}>${(5000 + deal.extraRecruiters * 3000).toLocaleString()}</strong></span>
+                </div>
+                <GoldCopyIncluded />
               </div>
             )}
           </Card>
@@ -4110,7 +4193,7 @@ function Config({ deal, setD, addons, tog, c, onView, onBack }) {
           {/* Add-ons */}
           <Card title={"Add-Ons" + (c.priced.length + c.scoped.length > 0 ? "  +" + (c.priced.length + c.scoped.length) + " selected" : "")}>
             <div style={{ fontSize: 12, color: "#6a7fa8", marginBottom: 10 }}>
-              Running total: <strong style={{ color: "#E8EDF8" }}>{usd(c.aIA + c.aIM)}</strong> impl
+              Running total: <strong style={{ color: "#E8EDF8" }}>{usd(c.aIA)}</strong> impl
               {c.aR > 0 && <> + <strong style={{ color: "#C8E653" }}>{usd(c.aR)}/yr</strong> recurring</>}
               {c.scoped.length > 0 && <span style={{ color: "#f4b942" }}> + {c.scoped.length} scoped</span>}
             </div>
@@ -4141,7 +4224,7 @@ function Config({ deal, setD, addons, tog, c, onView, onBack }) {
                           {item.scoped
                             ? <span style={{ color: "#f4b942", fontSize: 11 }}>Scope-based</span>
                             : <>
-                              {(item.implAv + item.implMpg) > 0 && <div style={{ color: "#8898b8" }}>Impl: {usd(item.implAv + item.implMpg)}</div>}
+                              {item.implAv > 0 && <div style={{ color: "#8898b8" }}>Impl: {usd(item.implAv)}</div>}
                               {item.recurring > 0 && <div style={{ color: "#C8E653" }}>+{usd(item.recurring)}/yr</div>}
                             </>
                           }
@@ -4221,10 +4304,13 @@ function Proposal({ deal, c, onBack, exportCSV }) {
   const pl   = (PLATFORMS.find(p => p.id === deal.platform) || {}).label || deal.platform;
 
   const lines = [
-    { label: "Platform licence - Avature",              impl: c.pIA,         ann: c.pA   },
-    { label: "Platform implementation - MPG Services",  impl: c.pIM,         ann: 0      },
-    c.aIA + c.aIM > 0
-      ? { label: "Add-on implementation (" + c.priced.length + " modules)", impl: c.aIA + c.aIM, ann: 0 }
+    { label: c.implType === "gold_copy"
+        ? "Platform implementation - Randstad (Gold Copy)" + (c.extraRecruiters > 0 ? " + " + c.extraRecruiters + " add. recruiters" : "")
+        : "Platform licence - Avature",
+      impl: c.pIA, ann: c.implType === "gold_copy" ? 0 : c.pA },
+    { label: "Platform licence - Avature", impl: 0, ann: c.pA },
+    c.aIA > 0
+      ? { label: "Add-on implementation (" + c.priced.length + " modules)", impl: c.aIA, ann: 0 }
       : null,
     c.aR > 0
       ? { label: "Add-on recurring licences",           impl: 0,             ann: c.aR   }
@@ -4363,6 +4449,7 @@ function Proposal({ deal, c, onBack, exportCSV }) {
             <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Configuration</div>
             {[
               ["Platform",     pl],
+              ["Implementation", deal.implType === "gold_copy" ? "Randstad (Gold Copy)" : "Avature"],
               ["Opportunity",  deal.oppType],
               ...(deal.platform === "EH" ? [["Company / Division Size", c.eh ? c.eh.label : "-"]] : []),
               ...(deal.platform === "EH" ? [["Recruiter Licences (max)", c.eh ? c.eh.maxRec : "-"]] : []),
@@ -4380,6 +4467,26 @@ function Proposal({ deal, c, onBack, exportCSV }) {
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* Gold Copy Included Capabilities */}
+            {deal.implType === "gold_copy" && (
+              <div style={{ background: "#f0faf4", border: "1px solid #86EFAC", borderRadius: 12, padding: "18px 20px" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#166534", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>
+                  ✅ Included Capabilities — Randstad Gold Copy
+                </div>
+                {[...new Set(GOLD_COPY_INCLUDED.map(i => i.category))].map(cat => (
+                  <div key={cat} style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#16a34a", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 5 }}>{cat}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                      {GOLD_COPY_INCLUDED.filter(i => i.category === cat).map(i => (
+                        <span key={i.item} style={{ fontSize: 11, background: "#dcfce7", border: "1px solid #86EFAC", color: "#166534", borderRadius: 5, padding: "3px 9px" }}>
+                          ✓ {i.item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             {c.priced.length > 0 && (
               <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, padding: "18px 20px", flex: 1 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Included Add-Ons</div>
