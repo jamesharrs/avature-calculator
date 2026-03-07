@@ -143,7 +143,8 @@ function calcPhaseWeeks(months) {
 }
 
 // ─── EXPORT PROPOSAL ──────────────────────────────────────────────────────────
-function exportProposal(months, computed, phases, clientName, importantNotice, currSym) {
+function exportProposal(months, computed, phases, clientName, importantNotice, currSym, mode="detailed") {
+  const isHighLevel = mode === "highlevel";
   const total = computed.reduce((s,r) => s + r.cost, 0);
   const totalDays = computed.reduce((s,r) => s + r.scaledDays, 0);
   const blended = total / totalDays;
@@ -260,7 +261,7 @@ td.bold{font-weight:700;color:#111827}
     <div class="cover-main">
       <div class="cover-eyebrow">Professional Services · Time &amp; Materials</div>
       <div class="cover-title">Implementation<br>Investment Estimate</div>
-      <div class="cover-subtitle">Confidential — Prepared for Client Review</div>
+      <div class="cover-subtitle">Confidential — Prepared for Client Review${isHighLevel ? ' &nbsp;<span style="background:#1A6B7C22;border:1px solid #1A6B7C66;color:#3A8FA6;border-radius:20px;padding:2px 10px;font-size:10px;letter-spacing:0.08em;font-family:Work Sans,sans-serif">HIGH-LEVEL SUMMARY</span>' : ''}</div>
       ${clientHeading}
     </div>
     <div>
@@ -287,7 +288,7 @@ td.bold{font-weight:700;color:#111827}
       <div class="kpi"><div class="kl">Timeline</div><div class="kv">${totalWeeks}w</div><div class="ks">${months} calendar month${months>1?"s":""}</div></div>
       <div class="kpi"><div class="kl">Specialist Roles</div><div class="kv">${computed.length}</div><div class="ks">dedicated resources</div></div>
     </div>
-    <div class="sh"><h2>Resource Allocation &amp; Cost Breakdown</h2></div>
+    ${!isHighLevel ? `<div class="sh"><h2>Resource Allocation &amp; Cost Breakdown — Estimate</h2></div>
     <table>
       <thead><tr><th>Resource / Role</th><th class="c">Day Rate</th><th class="c">Days</th><th class="c">Total Cost</th><th class="c">% Share</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -297,8 +298,8 @@ td.bold{font-weight:700;color:#111827}
       <span class="c">${totalDays}</span>
       <span class="gold">${currSym}${Math.round(total).toLocaleString()}</span>
       <span class="c" style="color:#E2E8F0">100%</span>
-    </div>
-    <div class="sh"><h2>Implementation Timeline — ${totalWeeks} Weeks</h2></div>
+    </div>` : ''}
+    <div class="sh"><h2>Implementation Timeline Estimate — ${totalWeeks} Weeks</h2></div>
     ${ganttBars}
     <div class="legend">${legend}</div>
     <div class="ms-row">
@@ -318,8 +319,8 @@ td.bold{font-weight:700;color:#111827}
 
 
 // Download as HTML file
-function downloadProposal(months, computed, phases, clientName, importantNotice, currSym) {
-  const html = exportProposal(months, computed, phases, clientName, importantNotice, currSym);
+function downloadProposal(months, computed, phases, clientName, importantNotice, currSym, mode="detailed") {
+  const html = exportProposal(months, computed, phases, clientName, importantNotice, currSym, mode);
   const blob = new Blob([html], { type:"text/html" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -330,8 +331,8 @@ function downloadProposal(months, computed, phases, clientName, importantNotice,
 }
 
 // Open in new tab + auto-trigger print dialog so user saves as PDF
-function printProposal(months, computed, phases, clientName, importantNotice, currSym) {
-  const html = exportProposal(months, computed, phases, clientName, importantNotice, currSym);
+function printProposal(months, computed, phases, clientName, importantNotice, currSym, mode="detailed") {
+  const html = exportProposal(months, computed, phases, clientName, importantNotice, currSym, mode);
   const closeScript = ["</scr", "ipt>"].join("");
   const printHTML = html.replace("</body>", `<script>
     window.onload = function() {
@@ -2393,6 +2394,7 @@ export default function TMCalculator() {
   const [savedToast, setSavedToast] = useState(null);
   const [loadedPlanId, setLoadedPlanId] = useState(null);
   const [loadedAssessment, setLoadedAssessment] = useState(null);
+  const [proposalMode, setProposalMode] = useState("detailed"); // "detailed" | "highlevel"
 
   const handleLoadPlan = (record) => {
     setClientName(record.client_name || "");
@@ -2671,8 +2673,19 @@ export default function TMCalculator() {
                     : Math.abs(freeWeeks) + "w over-allocated — fix timeline before exporting"}
                 </div>
               )}
+              {/* Proposal mode toggle */}
+              <div style={{ display:"flex", borderRadius:8, border:"1px solid #374151", overflow:"hidden", opacity: freeWeeks!==0 ? 0.4 : 1 }}>
+                <button onClick={() => setProposalMode("detailed")}
+                  style={{ padding:"8px 12px", border:"none", background: proposalMode==="detailed" ? "#1A6B7C" : "transparent", color: proposalMode==="detailed" ? "white" : "#9CA3AF", fontSize:11, fontWeight: proposalMode==="detailed" ? 700 : 400, cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}>
+                  Detailed
+                </button>
+                <button onClick={() => setProposalMode("highlevel")}
+                  style={{ padding:"8px 12px", border:"none", borderLeft:"1px solid #374151", background: proposalMode==="highlevel" ? "#1A6B7C" : "transparent", color: proposalMode==="highlevel" ? "white" : "#9CA3AF", fontSize:11, fontWeight: proposalMode==="highlevel" ? 700 : 400, cursor:"pointer", fontFamily:"inherit", transition:"all 0.15s" }}>
+                  High-Level
+                </button>
+              </div>
               <button className="export-btn"
-                onClick={()=>{ if(freeWeeks!==0){ return; } printProposal(months,computed,phases,clientName,importantNotice,currSym); handleSavePlan(); }}
+                onClick={()=>{ if(freeWeeks!==0){ return; } printProposal(months,computed,phases,clientName,importantNotice,currSym,proposalMode); handleSavePlan(); }}
                 style={{background: freeWeeks!==0 ? "#1F2937" : "linear-gradient(135deg,#1A6B7C,#155E6E)",
                   border:"none",color: freeWeeks!==0 ? "#4B5563" : "white",
                   borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,
@@ -2684,7 +2697,7 @@ export default function TMCalculator() {
                 <span style={{fontSize:15}}>⎙</span> Save as PDF
               </button>
               <button
-                onClick={()=>{ if(freeWeeks!==0){ return; } downloadProposal(months,computed,phases,clientName,importantNotice,currSym); }}
+                onClick={()=>{ if(freeWeeks!==0){ return; } downloadProposal(months,computed,phases,clientName,importantNotice,currSym,proposalMode); }}
                 style={{background:"transparent",
                   border:"1px solid " + (freeWeeks!==0 ? "#2D3748" : "#374151"),
                   color: freeWeeks!==0 ? "#374151" : "#9CA3AF",
@@ -3863,7 +3876,6 @@ function crmBand(u) { return CRM_BANDS.find(b => u <= b.maxUsers) || CRM_BANDS[C
 // ---- App -------------------------------------------------------------------
 function RandstadEstimator({ onBack }) {
   const [screen, setScreen] = useState("config"); // config | proposal
-  const [proposalMode, setProposalMode] = useState("detailed"); // "detailed" | "highlevel"
 
   const [deal, setDeal] = useState({
     clientName: "",
@@ -3950,7 +3962,7 @@ function RandstadEstimator({ onBack }) {
   };
 
   if (screen === "proposal") {
-    return <Proposal deal={deal} c={c} onBack={() => setScreen("config")} exportCSV={exportCSV} mode={proposalMode} setMode={setProposalMode} />;
+    return <Proposal deal={deal} c={c} onBack={() => setScreen("config")} exportCSV={exportCSV} />;
   }
   return <Config deal={deal} setD={setD} addons={addons} tog={tog} c={c} onView={() => setScreen("proposal")} onBack={onBack} />;
 }
@@ -4300,8 +4312,7 @@ function Config({ deal, setD, addons, tog, c, onView, onBack }) {
 }
 
 // ---- Proposal screen -------------------------------------------------------
-function Proposal({ deal, c, onBack, exportCSV, mode, setMode }) {
-  const isHighLevel = mode === "highlevel";
+function Proposal({ deal, c, onBack, exportCSV }) {
   const syne = { fontFamily: "'Work Sans', sans-serif" };
   const pl   = (PLATFORMS.find(p => p.id === deal.platform) || {}).label || deal.platform;
 
@@ -4342,16 +4353,6 @@ function Proposal({ deal, c, onBack, exportCSV, mode, setMode }) {
             style={{ padding: "8px 18px", borderRadius: 8, border: "1px solid #C8E653", background: "transparent", color: "#C8E653", fontSize: 13, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
             Download CSV
           </button>
-          <div style={{ display: "flex", borderRadius: 8, border: "1px solid #3a5080", overflow: "hidden" }}>
-            <button onClick={() => setMode("detailed")}
-              style={{ padding: "8px 14px", border: "none", background: mode === "detailed" ? "#C8E653" : "transparent", color: mode === "detailed" ? "#08102A" : "#8898b8", fontSize: 12, fontWeight: mode === "detailed" ? 700 : 400, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
-              Detailed
-            </button>
-            <button onClick={() => setMode("highlevel")}
-              style={{ padding: "8px 14px", border: "none", borderLeft: "1px solid #3a5080", background: mode === "highlevel" ? "#C8E653" : "transparent", color: mode === "highlevel" ? "#08102A" : "#8898b8", fontSize: 12, fontWeight: mode === "highlevel" ? 700 : 400, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
-              High-Level
-            </button>
-          </div>
           <button onClick={() => window.print()}
             style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "#C8E653", color: "#08102A", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
             Save as PDF
@@ -4371,7 +4372,7 @@ function Proposal({ deal, c, onBack, exportCSV, mode, setMode }) {
               <svg width="110" height="30" viewBox="0 0 110 30" fill="none"><text x="0" y="24" fontFamily="'Work Sans', sans-serif" fontWeight="700" fontSize="24" fill="#8a9040">randstad</text></svg>
             </div>
             <div style={{ fontSize: 11, color: "#6a7fa8", letterSpacing: "0.1em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 8 }}>
-              Commercial Estimate — Dedicated RPO Instance
+              Commercial Proposal - Dedicated RPO Instance
               {isHighLevel && <span style={{ background: "#C8E65322", border: "1px solid #C8E65366", color: "#C8E653", borderRadius: 20, padding: "2px 10px", fontSize: 10, letterSpacing: "0.08em" }}>HIGH-LEVEL SUMMARY</span>}
             </div>
           </div>
@@ -4423,10 +4424,10 @@ function Proposal({ deal, c, onBack, exportCSV, mode, setMode }) {
           ))}
         </div>
 
-        {/* Line items — hidden in high-level mode */}
-        {!isHighLevel && <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
+        {/* Line items */}
+        <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
           <div style={{ padding: "14px 20px", background: "#0D1B3E" }}>
-            <span style={{ ...syne, fontWeight: 700, fontSize: 14, color: "#E8EDF8" }}>Commercial Estimate — Cost Breakdown</span>
+            <span style={{ ...syne, fontWeight: 700, fontSize: 14, color: "#E8EDF8" }}>Commercial Breakdown</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 1fr 1fr", padding: "10px 20px", borderBottom: "1px solid #dde3ef", background: "#f4f6fa" }}>
             <span style={{ fontSize: 11, fontWeight: 600, color: "#8898b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>Cost Line</span>
@@ -4454,12 +4455,12 @@ function Proposal({ deal, c, onBack, exportCSV, mode, setMode }) {
               <span style={{ fontSize: 12, color: "#C8E653", fontWeight: 700 }}>{c.disc.display} off all platform &amp; add-on fees</span>
             </div>
           )}
-        </div>}
+        </div>
 
         {/* Configuration summary */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
           <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, padding: "18px 20px" }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Configuration Summary</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Configuration</div>
             {[
               ["Platform",     pl],
               ["Implementation", deal.implType === "gold_copy" ? "Randstad (Gold Copy)" : "Avature"],
@@ -4502,7 +4503,7 @@ function Proposal({ deal, c, onBack, exportCSV, mode, setMode }) {
             )}
             {c.priced.length > 0 && (
               <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, padding: "18px 20px", flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Selected Add-Ons — Estimate</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Included Add-Ons</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {c.priced.map(i => (
                     <span key={i.id} style={{ fontSize: 11, background: "#f0f4e8", border: "1px solid #c8d87a", color: "#3a4a10", borderRadius: 5, padding: "3px 9px" }}>{i.name}</span>
@@ -4512,7 +4513,7 @@ function Proposal({ deal, c, onBack, exportCSV, mode, setMode }) {
             )}
             {c.scoped.length > 0 && (
               <div style={{ background: "#fffdf0", border: "1px solid #e8d87a", borderRadius: 12, padding: "18px 20px" }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#7a5a10", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Scope-Based Items — Separate Estimate Required</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#7a5a10", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Scope-Based Items</div>
                 {c.scoped.map(i => (
                   <div key={i.id} style={{ fontSize: 13, color: "#5a4010", padding: "4px 0", borderBottom: "1px solid #f0e8a0", display: "flex", justifyContent: "space-between" }}>
                     <span>{i.name}</span>
@@ -4527,7 +4528,7 @@ function Proposal({ deal, c, onBack, exportCSV, mode, setMode }) {
         {/* Notes */}
         {deal.notes && (
           <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, padding: "18px 20px", marginBottom: 24 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Notes & Assumptions — Estimate Basis</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Notes & Assumptions</div>
             <div style={{ fontSize: 13, color: "#4a5a78", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{deal.notes}</div>
           </div>
         )}
