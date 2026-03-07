@@ -3863,6 +3863,7 @@ function crmBand(u) { return CRM_BANDS.find(b => u <= b.maxUsers) || CRM_BANDS[C
 // ---- App -------------------------------------------------------------------
 function RandstadEstimator({ onBack }) {
   const [screen, setScreen] = useState("config"); // config | proposal
+  const [proposalMode, setProposalMode] = useState("detailed"); // "detailed" | "highlevel"
 
   const [deal, setDeal] = useState({
     clientName: "",
@@ -3949,7 +3950,7 @@ function RandstadEstimator({ onBack }) {
   };
 
   if (screen === "proposal") {
-    return <Proposal deal={deal} c={c} onBack={() => setScreen("config")} exportCSV={exportCSV} />;
+    return <Proposal deal={deal} c={c} onBack={() => setScreen("config")} exportCSV={exportCSV} mode={proposalMode} setMode={setProposalMode} />;
   }
   return <Config deal={deal} setD={setD} addons={addons} tog={tog} c={c} onView={() => setScreen("proposal")} onBack={onBack} />;
 }
@@ -4299,7 +4300,8 @@ function Config({ deal, setD, addons, tog, c, onView, onBack }) {
 }
 
 // ---- Proposal screen -------------------------------------------------------
-function Proposal({ deal, c, onBack, exportCSV }) {
+function Proposal({ deal, c, onBack, exportCSV, mode, setMode }) {
+  const isHighLevel = mode === "highlevel";
   const syne = { fontFamily: "'Work Sans', sans-serif" };
   const pl   = (PLATFORMS.find(p => p.id === deal.platform) || {}).label || deal.platform;
 
@@ -4340,6 +4342,16 @@ function Proposal({ deal, c, onBack, exportCSV }) {
             style={{ padding: "8px 18px", borderRadius: 8, border: "1px solid #C8E653", background: "transparent", color: "#C8E653", fontSize: 13, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
             Download CSV
           </button>
+          <div style={{ display: "flex", borderRadius: 8, border: "1px solid #3a5080", overflow: "hidden" }}>
+            <button onClick={() => setMode("detailed")}
+              style={{ padding: "8px 14px", border: "none", background: mode === "detailed" ? "#C8E653" : "transparent", color: mode === "detailed" ? "#08102A" : "#8898b8", fontSize: 12, fontWeight: mode === "detailed" ? 700 : 400, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
+              Detailed
+            </button>
+            <button onClick={() => setMode("highlevel")}
+              style={{ padding: "8px 14px", border: "none", borderLeft: "1px solid #3a5080", background: mode === "highlevel" ? "#C8E653" : "transparent", color: mode === "highlevel" ? "#08102A" : "#8898b8", fontSize: 12, fontWeight: mode === "highlevel" ? 700 : 400, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
+              High-Level
+            </button>
+          </div>
           <button onClick={() => window.print()}
             style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "#C8E653", color: "#08102A", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'Work Sans', sans-serif" }}>
             Save as PDF
@@ -4358,8 +4370,9 @@ function Proposal({ deal, c, onBack, exportCSV }) {
               <span style={{ color: "#8a9040", fontSize: 18, fontWeight: 300 }}>x</span>
               <svg width="110" height="30" viewBox="0 0 110 30" fill="none"><text x="0" y="24" fontFamily="'Work Sans', sans-serif" fontWeight="700" fontSize="24" fill="#8a9040">randstad</text></svg>
             </div>
-            <div style={{ fontSize: 11, color: "#6a7fa8", letterSpacing: "0.1em", textTransform: "uppercase" }}>
-              Commercial Proposal - Dedicated RPO Instance
+            <div style={{ fontSize: 11, color: "#6a7fa8", letterSpacing: "0.1em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 8 }}>
+              Commercial Estimate — Dedicated RPO Instance
+              {isHighLevel && <span style={{ background: "#C8E65322", border: "1px solid #C8E65366", color: "#C8E653", borderRadius: 20, padding: "2px 10px", fontSize: 10, letterSpacing: "0.08em" }}>HIGH-LEVEL SUMMARY</span>}
             </div>
           </div>
           <div style={{ textAlign: "right", fontSize: 12, color: "#6a7fa8", lineHeight: 1.8 }}>
@@ -4410,10 +4423,10 @@ function Proposal({ deal, c, onBack, exportCSV }) {
           ))}
         </div>
 
-        {/* Line items */}
-        <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
+        {/* Line items — hidden in high-level mode */}
+        {!isHighLevel && <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, overflow: "hidden", marginBottom: 24 }}>
           <div style={{ padding: "14px 20px", background: "#0D1B3E" }}>
-            <span style={{ ...syne, fontWeight: 700, fontSize: 14, color: "#E8EDF8" }}>Commercial Breakdown</span>
+            <span style={{ ...syne, fontWeight: 700, fontSize: 14, color: "#E8EDF8" }}>Commercial Estimate — Cost Breakdown</span>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "2.2fr 1fr 1fr 1fr", padding: "10px 20px", borderBottom: "1px solid #dde3ef", background: "#f4f6fa" }}>
             <span style={{ fontSize: 11, fontWeight: 600, color: "#8898b8", textTransform: "uppercase", letterSpacing: "0.06em" }}>Cost Line</span>
@@ -4441,12 +4454,12 @@ function Proposal({ deal, c, onBack, exportCSV }) {
               <span style={{ fontSize: 12, color: "#C8E653", fontWeight: 700 }}>{c.disc.display} off all platform &amp; add-on fees</span>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Configuration summary */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
           <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, padding: "18px 20px" }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Configuration</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 12 }}>Configuration Summary</div>
             {[
               ["Platform",     pl],
               ["Implementation", deal.implType === "gold_copy" ? "Randstad (Gold Copy)" : "Avature"],
@@ -4489,7 +4502,7 @@ function Proposal({ deal, c, onBack, exportCSV }) {
             )}
             {c.priced.length > 0 && (
               <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, padding: "18px 20px", flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Included Add-Ons</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 10 }}>Selected Add-Ons — Estimate</div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                   {c.priced.map(i => (
                     <span key={i.id} style={{ fontSize: 11, background: "#f0f4e8", border: "1px solid #c8d87a", color: "#3a4a10", borderRadius: 5, padding: "3px 9px" }}>{i.name}</span>
@@ -4499,7 +4512,7 @@ function Proposal({ deal, c, onBack, exportCSV }) {
             )}
             {c.scoped.length > 0 && (
               <div style={{ background: "#fffdf0", border: "1px solid #e8d87a", borderRadius: 12, padding: "18px 20px" }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#7a5a10", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Scope-Based Items</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#7a5a10", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Scope-Based Items — Separate Estimate Required</div>
                 {c.scoped.map(i => (
                   <div key={i.id} style={{ fontSize: 13, color: "#5a4010", padding: "4px 0", borderBottom: "1px solid #f0e8a0", display: "flex", justifyContent: "space-between" }}>
                     <span>{i.name}</span>
@@ -4514,7 +4527,7 @@ function Proposal({ deal, c, onBack, exportCSV }) {
         {/* Notes */}
         {deal.notes && (
           <div style={{ background: "#fff", border: "1px solid #dde3ef", borderRadius: 12, padding: "18px 20px", marginBottom: 24 }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Notes & Assumptions</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "#0D1B3E", textTransform: "uppercase", letterSpacing: "0.07em", marginBottom: 8 }}>Notes & Assumptions — Estimate Basis</div>
             <div style={{ fontSize: 13, color: "#4a5a78", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{deal.notes}</div>
           </div>
         )}
