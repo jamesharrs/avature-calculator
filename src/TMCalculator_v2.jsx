@@ -4371,9 +4371,8 @@ function Proposal({ deal, c, onBack, exportCSV }) {
               <span style={{ color: "#8a9040", fontSize: 18, fontWeight: 300 }}>x</span>
               <svg width="110" height="30" viewBox="0 0 110 30" fill="none"><text x="0" y="24" fontFamily="'Work Sans', sans-serif" fontWeight="700" fontSize="24" fill="#8a9040">randstad</text></svg>
             </div>
-            <div style={{ fontSize: 11, color: "#6a7fa8", letterSpacing: "0.1em", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ fontSize: 11, color: "#6a7fa8", letterSpacing: "0.1em", textTransform: "uppercase" }}>
               Commercial Proposal - Dedicated RPO Instance
-              {isHighLevel && <span style={{ background: "#C8E65322", border: "1px solid #C8E65366", color: "#C8E653", borderRadius: 20, padding: "2px 10px", fontSize: 10, letterSpacing: "0.08em" }}>HIGH-LEVEL SUMMARY</span>}
             </div>
           </div>
           <div style={{ textAlign: "right", fontSize: 12, color: "#6a7fa8", lineHeight: 1.8 }}>
