@@ -143,13 +143,28 @@ function W_DataTable({ brand, w, isMobile=false }) {
 
   const isJobsTable = cols.some(c => ['Openings','Shortlisted','Interviewing','Offers','Onboarding'].includes(c));
   const isCandidateTable = cols.some(c => ['Name','Current position','Employer','Applying to'].includes(c));
+  const hasStatusCol = cols.includes('Status');
 
   let rows;
-  if (md.tableRows) {
+  if (md.tableRows && !isCandidateTable) {
+    // tableRows is jobs data — only use for jobs tables, not candidate tables
     const raw = md.tableRows;
     const firstCell = (raw[0]?.[0]||'').toLowerCase();
     const isHeaderRow = ['job title','name','job','role'].includes(firstCell) || cols.filter(c=>c!=='').map(c=>c.toLowerCase()).includes(firstCell);
     rows = (isHeaderRow ? raw.slice(1) : raw).slice(0,4);
+  } else if (isCandidateTable) {
+    const STATUSES = ['Shortlisted','Interviewing','Shortlisted','Active offer','Shortlisted'];
+    const cands = md.candidates || [
+      ['Adeyemi, Tunde',   'Shift Supervisor', 'KFC Nigeria',          'Store Supervisor'],
+      ['Okonkwo, Ify',     'Crew Lead',         'Chicken Republic',     'Area Manager'],
+      ['Mensah, Kofi',     'Restaurant Mgr',    'Tastee Fried Chicken', 'Crew Leader'],
+      ['Abubakar, Fatima', 'Team Lead',         'Dominos Nigeria',      'Store Supervisor'],
+    ];
+    rows = cands.slice(0,4).map((c, i) =>
+      hasStatusCol
+        ? [c[0], c[1], c[2], c[3], STATUSES[i % STATUSES.length]]
+        : [c[0], c[1], c[2], c[3]]
+    );
   } else if (isJobsTable) {
     rows = [
       ['Store Supervisor','Lagos Central','20','12','8','3','1'],
@@ -157,14 +172,6 @@ function W_DataTable({ brand, w, isMobile=false }) {
       ['Crew Leader','Port Harcourt','10','15','10','4','2'],
       ['Graduate Trainee','Accra','8','9','7','2','1'],
     ];
-  } else if (isCandidateTable) {
-    const cands = md.candidates || [
-      ['Adeyemi, Tunde','Shift Supervisor','KFC Nigeria','Store Supervisor'],
-      ['Okonkwo, Ify','Crew Lead','Chicken Republic','Store Supervisor'],
-      ['Mensah, Kofi','Restaurant Mgr','Tastee Fried Chicken','Area Manager'],
-      ['Abubakar, Fatima','Team Lead','Dominos Nigeria','Crew Leader'],
-    ];
-    rows = cands.slice(0,4);
   } else {
     rows = [
       ['Store Supervisor','Lagos','Active','—'],
@@ -205,12 +212,17 @@ function W_DataTable({ brand, w, isMobile=false }) {
               <tr key={ri} style={{ borderBottom:'0.5px solid #f5f5f5' }}>
                 {!isMobile && hasCheckbox && <td style={{ padding:'8px 10px' }}><input type="checkbox" /></td>}
                 {row.slice(0, isMobile?2:visibleCols.length).map((cell,ci) => {
-                  const isNum = ci > 1 && !isNaN(cell) && cell !== '';
+                  const isNum = ci > 1 && !isNaN(cell) && cell !== '' && cell !== '—';
+                  const isStatus = visibleCols[ci] === 'Status';
+                  const statusColors = { 'Shortlisted':['#1d4ed8','#dbeafe'], 'Interviewing':['#7c3aed','#ede9fe'], 'Active offer':['#15803d','#dcfce7'], 'Not a fit':['#6b7280','#f3f4f6'] };
+                  const sc = statusColors[cell] || ['#374151','#f3f4f6'];
                   return (
-                  <td key={ci} style={{ padding:isMobile?'7px 8px':'9px 12px', color:ci===0?brand.primary:isNum?brand.primary:'#333', fontWeight:ci===0||isNum?600:400, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:ci===0?'pointer':'default' }}>
-                    {!isMobile && ci===row.length-1 && visibleCols[visibleCols.length-1]==='Action'
-                      ? <button style={{ fontSize:9, padding:'2px 7px', border:`1px solid ${lighten(brand.primary,160)}`, borderRadius:4, background:'white', color:brand.primary, cursor:'pointer', fontWeight:500 }}>Actions ▾</button>
-                      : cell
+                  <td key={ci} style={{ padding:isMobile?'7px 8px':'9px 12px', color:isStatus?'inherit':ci===0?brand.primary:isNum?brand.primary:'#333', fontWeight:ci===0||isNum?600:400, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:ci===0?'pointer':'default' }}>
+                    {isStatus
+                      ? <span style={{ fontSize:9, fontWeight:700, padding:'2px 8px', borderRadius:20, background:sc[1], color:sc[0] }}>{cell}</span>
+                      : !isMobile && ci===row.length-1 && visibleCols[visibleCols.length-1]==='Action'
+                        ? <button style={{ fontSize:9, padding:'2px 7px', border:`1px solid ${lighten(brand.primary,160)}`, borderRadius:4, background:'white', color:brand.primary, cursor:'pointer', fontWeight:500 }}>Actions ▾</button>
+                        : cell
                     }
                   </td>
                   );
@@ -720,6 +732,137 @@ function W_ProfileTwoCol({ brand, w, isMobile=false }) {
   );
 }
 
+function W_AutoScreenedTable({ brand, isMobile=false }) {
+  const md = brand.mockData || {};
+  const jobs = md.jobs || ['Store Supervisor','Area Manager','Crew Leader','Graduate Trainee'];
+  const locs = md.locations || ['Lagos','Abuja','Port Harcourt','Accra'];
+  const employers = md.employers || ['KFC Nigeria','Chicken Republic','Tastee Fried Chicken','Dominos Nigeria'];
+
+  const PROGRESSED_REASONS = [
+    'Meets all essential criteria. 4+ years relevant experience, strong leadership track record, previous food service management confirmed.',
+    'Skills match 91%. Degree in Business Administration, 3 years supervisory experience, availability aligns with shift requirements.',
+    'Exceeds minimum requirements. Multi-site experience, bilingual (English/Yoruba), immediately available.',
+    'Strong application. Customer service background, relevant certifications, shift flexibility confirmed.',
+    'Above threshold score (88/100). Previous QSR experience, reference checks passed pre-screen, no gaps in employment.',
+    'Criteria met. Team leader experience in high-volume environment, food hygiene certificate valid, notice period acceptable.',
+  ];
+  const REJECTED_REASONS = [
+    'Does not meet minimum experience requirement (2 years required, 8 months declared). Insufficient supervisory background.',
+    'Availability mismatch — applicant only available weekday mornings; role requires full shift flexibility including weekends.',
+    'No relevant QSR or food service background identified. Current experience limited to retail sector only.',
+    'Right to work documentation not confirmed. Incomplete application — key sections left blank.',
+    'Below screening threshold (42/100). Skills assessment score insufficient. Experience in unrelated sector.',
+    'Location mismatch — applicant based 80+ km from role location, no relocation confirmed, no transport stated.',
+  ];
+  const STATUSES = [
+    { label:'Progressed', color:'#15803d', bg:'#dcfce7' },
+    { label:'Rejected',   color:'#b91c1c', bg:'#fee2e2' },
+    { label:'Progressed', color:'#15803d', bg:'#dcfce7' },
+    { label:'Rejected',   color:'#b91c1c', bg:'#fee2e2' },
+    { label:'Progressed', color:'#15803d', bg:'#dcfce7' },
+    { label:'Under review', color:'#92400e', bg:'#fef3c7' },
+    { label:'Progressed', color:'#15803d', bg:'#dcfce7' },
+    { label:'Rejected',   color:'#b91c1c', bg:'#fee2e2' },
+  ];
+
+  const baseCandidates = md.candidates && md.candidates.length >= 4
+    ? md.candidates
+    : [
+        ['Adeyemi, Tunde',    'Shift Supervisor',  'KFC Nigeria',           'Store Supervisor'],
+        ['Okonkwo, Ify',      'Crew Lead',          'Chicken Republic',      'Store Supervisor'],
+        ['Mensah, Kofi',      'Restaurant Mgr',     'Tastee Fried Chicken',  'Area Manager'],
+        ['Abubakar, Fatima',  'Team Lead',          'Dominos Nigeria',       'Crew Leader'],
+        ['Eze, Chidi',        'Floor Supervisor',   'Mr Biggs',              'Store Supervisor'],
+        ['Owusu, Grace',      'Ops Coordinator',    'Shoprite Nigeria',      'Area Manager'],
+        ['Nwosu, Emeka',      'Duty Manager',       'Chicken Republic',      'Graduate Trainee'],
+        ['Diallo, Aminata',   'Customer Lead',      'TFC Ghana',             'Crew Leader'],
+      ];
+
+  const rowCount = isMobile ? 4 : 8;
+  const candidates = Array.from({ length: rowCount }, (_, i) => {
+    const c = baseCandidates[i % baseCandidates.length];
+    const job = jobs[i % jobs.length];
+    const status = STATUSES[i % STATUSES.length];
+    const reason = status.label === 'Progressed'
+      ? PROGRESSED_REASONS[i % PROGRESSED_REASONS.length]
+      : status.label === 'Rejected'
+        ? REJECTED_REASONS[i % REJECTED_REASONS.length]
+        : 'Borderline score (61/100). Manual review requested — experience partially meets criteria.';
+    return { name: c[0], position: c[1], employer: c[2], applying: job, status, reason };
+  });
+
+  const [expanded, setExpanded] = React.useState({});
+  const toggle = (i) => setExpanded(s => ({ ...s, [i]: !s[i] }));
+  const TRUNCATE = 80;
+
+  const cols = isMobile
+    ? ['Name','Applying to','Outcome']
+    : ['Name','Current position','Employer','Applying to','Outcome','AI Screening summary'];
+
+  return (
+    <div style={{ marginBottom:14 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+        <span style={{ fontSize:14, fontWeight:700, color:'#111' }}>Auto Screened candidates</span>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <span style={{ fontSize:10, color:'#888' }}>1–{rowCount} of {rowCount * 3} results</span>
+          <button style={{ background:brand.primary, color:'white', border:'none', borderRadius:5, padding:'5px 12px', fontSize:11, fontWeight:600, cursor:'pointer' }}>Mass Update ▾</button>
+        </div>
+      </div>
+      <div style={{ background:'white', borderRadius:8, border:'0.5px solid #e5e7eb', overflow:'hidden' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:isMobile?9:11 }}>
+          <thead>
+            <tr style={{ background:'#fafafa' }}>
+              {!isMobile && <th style={{ padding:'9px 12px', width:28 }}><input type="checkbox" /></th>}
+              {cols.map((h,i) => (
+                <th key={i} style={{ padding:isMobile?'7px 8px':'9px 12px', textAlign:'left', fontSize:isMobile?9:10, fontWeight:600, color:'#888', borderBottom:'1px solid #f0f0f0' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {candidates.map((c, i) => (
+              <tr key={i} style={{ borderBottom:'0.5px solid #f5f5f5', verticalAlign:'top' }}>
+                {!isMobile && <td style={{ padding:'9px 12px' }}><input type="checkbox" /></td>}
+                {/* Name */}
+                <td style={{ padding:isMobile?'7px 8px':'9px 12px', color:brand.primary, fontWeight:600, whiteSpace:'nowrap', cursor:'pointer' }}>{c.name}</td>
+                {/* Current position — desktop only */}
+                {!isMobile && <td style={{ padding:'9px 12px', color:'#333', whiteSpace:'nowrap' }}>{c.position}</td>}
+                {/* Employer — desktop only */}
+                {!isMobile && <td style={{ padding:'9px 12px', color:'#333', whiteSpace:'nowrap' }}>{c.employer}</td>}
+                {/* Applying to */}
+                <td style={{ padding:isMobile?'7px 8px':'9px 12px', color:'#333', whiteSpace:'nowrap' }}>{c.applying}</td>
+                {/* Status badge */}
+                <td style={{ padding:isMobile?'7px 8px':'9px 12px', whiteSpace:'nowrap' }}>
+                  <span style={{ fontSize:isMobile?8:10, fontWeight:700, padding:'3px 8px', borderRadius:20, background:c.status.bg, color:c.status.color }}>
+                    {c.status.label}
+                  </span>
+                </td>
+                {/* AI summary — desktop only, truncated with expand */}
+                {!isMobile && (
+                  <td style={{ padding:'9px 12px', maxWidth:320 }}>
+                    <div style={{ display:'flex', alignItems:'flex-start', gap:4 }}>
+                      <span style={{ fontSize:11, color:'#6366f1', fontWeight:700, flexShrink:0, marginTop:1 }}>✦</span>
+                      <span style={{ fontSize:10, color:'#555', lineHeight:1.5 }}>
+                        {expanded[i] ? c.reason : c.reason.slice(0, TRUNCATE) + (c.reason.length > TRUNCATE ? '…' : '')}
+                        {c.reason.length > TRUNCATE && (
+                          <span
+                            onClick={() => toggle(i)}
+                            style={{ color:brand.primary, cursor:'pointer', fontWeight:600, marginLeft:4, whiteSpace:'nowrap' }}>
+                            {expanded[i] ? ' less' : ' more'}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function Widget({ brand, w, isMobile=false }) {
   const t = w.type;
   if (t==='hero_banner')     return <W_HeroBanner brand={brand} w={w} isMobile={isMobile} />;
@@ -738,6 +881,7 @@ function Widget({ brand, w, isMobile=false }) {
   if (t==='welcome_card')    return <W_WelcomeCard brand={brand} w={w} isMobile={isMobile} />;
   if (t==='profile_two_col') return <W_ProfileTwoCol brand={brand} w={w} isMobile={isMobile} />;
   if (t==='job_search')      return <W_JobSearch brand={brand} isMobile={isMobile} />;
+  if (t==='auto_screened_table') return <W_AutoScreenedTable brand={brand} isMobile={isMobile} />;
   return null;
 }
 

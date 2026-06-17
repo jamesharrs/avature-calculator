@@ -61,7 +61,16 @@ export const BUILTIN_TEMPLATES = [
           { type: 'page_hero', breadcrumb: ['Dashboard','Shortlisted'] },
           { type: 'pipeline_tabs', tabs: ['Shortlisted','Interviewing','Active offers','Onboardings','Not a fit','Withdrawn'] },
           { type: 'filter_row', filters: ['Search by name','Preferred shift','Availability','Skills'] },
-          { type: 'data_table', columns: ['','Name','Current position','Employer','Applying to','Action'], bulkAction: 'Mass Update' },
+          { type: 'data_table', columns: ['','Name','Current position','Employer','Applying to','Status','Action'], bulkAction: 'Mass Update' },
+        ]
+      },
+      {
+        id: 'auto-screened', label: 'Auto Screened',
+        widgets: [
+          { type: 'page_hero', breadcrumb: ['Dashboard','Auto Screened'] },
+          { type: 'pipeline_tabs', tabs: ['All','Progressed','Rejected','Under review'] },
+          { type: 'filter_row', filters: ['Search by name','Role','Outcome'] },
+          { type: 'auto_screened_table' },
         ]
       },
       {
