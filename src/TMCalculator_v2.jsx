@@ -96,13 +96,35 @@ const DEFAULT_RESOURCES = [
 ];
 
 const CURRENCIES = [
-  { code:"USD", symbol:"$",  label:"US Dollar"       },
-  { code:"EUR", symbol:"€",  label:"Euro"             },
-  { code:"GBP", symbol:"£",  label:"British Pound"    },
-  { code:"AED", symbol:"د.إ",label:"UAE Dirham"       },
-  { code:"JPY", symbol:"¥",  label:"Japanese Yen"     },
-  { code:"CHF", symbol:"Fr", label:"Swiss Franc"      },
+  { code:"USD", symbol:"$",    label:"US Dollar",        fxFromUSD:1       },
+  { code:"GBP", symbol:"£",    label:"British Pound",    fxFromUSD:0.79    },
+  { code:"EUR", symbol:"€",    label:"Euro",             fxFromUSD:0.92    },
+  { code:"SAR", symbol:"SAR ", label:"Saudi Riyal",      fxFromUSD:3.75    },
+  { code:"AED", symbol:"AED ", label:"UAE Dirham",       fxFromUSD:3.67    },
+  { code:"QAR", symbol:"QAR ", label:"Qatari Riyal",     fxFromUSD:3.64    },
+  { code:"KWD", symbol:"KWD ", label:"Kuwaiti Dinar",    fxFromUSD:0.31    },
+  { code:"CHF", symbol:"Fr ",  label:"Swiss Franc",      fxFromUSD:0.90    },
+  { code:"SGD", symbol:"S$ ",  label:"Singapore Dollar", fxFromUSD:1.34    },
+  { code:"AUD", symbol:"A$ ",  label:"Australian Dollar",fxFromUSD:1.53    },
+  { code:"CAD", symbol:"C$ ",  label:"Canadian Dollar",  fxFromUSD:1.36    },
+  { code:"JPY", symbol:"¥",    label:"Japanese Yen",     fxFromUSD:154     },
+  { code:"INR", symbol:"₹",    label:"Indian Rupee",     fxFromUSD:83.5    },
 ];
+
+// Live FX fetch — updates rates from open.er-api.com (no key required)
+async function fetchLiveFX(setCurrencies) {
+  try {
+    const res = await fetch("https://open.er-api.com/v6/latest/USD");
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.rates) return;
+    setCurrencies(prev => prev.map(c => ({
+      ...c,
+      fxFromUSD: data.rates[c.code] ?? c.fxFromUSD,
+      live: !!data.rates[c.code],
+    })));
+  } catch(e) { /* silent fail — fallback rates remain */ }
+}
 
 const DURATION_OPTIONS = [1,2,3,4,5,6,9,12,15,18];
 const BASELINE_COST = 94000;
@@ -110,7 +132,16 @@ const BASELINE_MONTHS = 3;
 const DEFAULT_NOTICE = `This estimate has been prepared on a time & materials basis in accordance with Avature's standard implementation methodology and is based on the information available at the time of preparation. Final costs will depend on the actual days consumed, confirmed scope, client resource availability, and any additional requirements identified during detailed scoping or throughout the project lifecycle. This document is confidential and intended solely for the named recipient.`;
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
-function fmtC(n, sym) { return sym + Math.round(n).toLocaleString(); }
+function fmtC(n, currOrSym, fxRate) {
+  // Accepts either (amount, currencyObject) or legacy (amount, symString)
+  if (typeof currOrSym === "object" && currOrSym !== null) {
+    const converted = Math.round(n * (currOrSym.fxFromUSD || 1));
+    return currOrSym.symbol + converted.toLocaleString();
+  }
+  // Legacy string sym path (for HTML export which still gets a string)
+  const converted = fxRate ? Math.round(n * fxRate) : Math.round(n);
+  return (currOrSym || "$") + converted.toLocaleString();
+}
 
 function calcResources(resources, months, rateAdj, complexity) {
   const complexFactor = (complexity / 100) * 3.0;
@@ -143,7 +174,7 @@ function calcPhaseWeeks(months) {
 }
 
 // ─── EXPORT PROPOSAL ──────────────────────────────────────────────────────────
-function exportProposal(months, computed, phases, clientName, importantNotice, currSym, mode="detailed") {
+function exportProposal(months, computed, phases, clientName, importantNotice, currSym, mode="detailed", fxRate=1, currCode="USD") {
   const isHighLevel = mode === "highlevel";
   const total = computed.reduce((s,r) => s + r.cost, 0);
   const totalDays = computed.reduce((s,r) => s + r.scaledDays, 0);
@@ -154,9 +185,9 @@ function exportProposal(months, computed, phases, clientName, importantNotice, c
   const rows = computed.map(r => `
     <tr>
       <td>${r.role}</td>
-      <td class="c">${currSym}${Math.round(r.adjRate).toLocaleString()}</td>
+      <td class="c">${currSym}${Math.round(r.adjRate * fxRate).toLocaleString()}</td>
       <td class="c">${r.scaledDays}</td>
-      <td class="c bold">${currSym}${Math.round(r.cost).toLocaleString()}</td>
+      <td class="c bold">${currSym}${Math.round(r.cost * fxRate).toLocaleString()}</td>
       <td class="c">${((r.cost/total)*100).toFixed(1)}%</td>
     </tr>`).join("");
 
@@ -281,9 +312,9 @@ td.bold{font-weight:700;color:#111827}
 <div class="pg">
   <div class="pg-body">
     <div class="kgrid">
-      <div class="kpi accent"><div class="kl">Total Investment</div><div class="kv">${currSym}${Math.round(total).toLocaleString()}</div><div class="ks" style="color:#475569">Time &amp; materials basis</div></div>
+      <div class="kpi accent"><div class="kl">Total Investment</div><div class="kv">${currSym}${Math.round(total * fxRate).toLocaleString()}</div><div class="ks" style="color:#475569">Time &amp; materials basis</div></div>
       <div class="kpi"><div class="kl">Consultant Days</div><div class="kv">${totalDays}</div><div class="ks">across ${months} month${months>1?"s":""}</div></div>
-      <div class="kpi"><div class="kl">Blended Day Rate</div><div class="kv">${currSym}${Math.round(blended).toLocaleString()}</div><div class="ks">weighted average</div></div>
+      <div class="kpi"><div class="kl">Blended Day Rate</div><div class="kv">${currSym}${Math.round(blended * fxRate).toLocaleString()}</div><div class="ks">weighted average</div></div>
       <div class="kpi"><div class="kl">Project Phases</div><div class="kv">7</div><div class="ks">Avature methodology</div></div>
       <div class="kpi"><div class="kl">Timeline</div><div class="kv">${totalWeeks}w</div><div class="ks">${months} calendar month${months>1?"s":""}</div></div>
       <div class="kpi"><div class="kl">Specialist Roles</div><div class="kv">${computed.length}</div><div class="ks">dedicated resources</div></div>
@@ -296,7 +327,7 @@ td.bold{font-weight:700;color:#111827}
     <div class="total-row">
       <span>TOTAL</span><span></span>
       <span class="c">${totalDays}</span>
-      <span class="gold">${currSym}${Math.round(total).toLocaleString()}</span>
+      <span class="gold">${currSym}${Math.round(total * fxRate).toLocaleString()}</span>
       <span class="c" style="color:#E2E8F0">100%</span>
     </div>` : ''}
     <div class="sh"><h2>Implementation Timeline Estimate — ${totalWeeks} Weeks</h2></div>
@@ -319,8 +350,8 @@ td.bold{font-weight:700;color:#111827}
 
 
 // Download as HTML file
-function downloadProposal(months, computed, phases, clientName, importantNotice, currSym, mode="detailed") {
-  const html = exportProposal(months, computed, phases, clientName, importantNotice, currSym, mode);
+function downloadProposal(months, computed, phases, clientName, importantNotice, currSym, mode="detailed", fxRate=1, currCode="USD") {
+  const html = exportProposal(months, computed, phases, clientName, importantNotice, currSym, mode, fxRate, currCode);
   const blob = new Blob([html], { type:"text/html" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -331,8 +362,8 @@ function downloadProposal(months, computed, phases, clientName, importantNotice,
 }
 
 // Open in new tab + auto-trigger print dialog so user saves as PDF
-function printProposal(months, computed, phases, clientName, importantNotice, currSym, mode="detailed") {
-  const html = exportProposal(months, computed, phases, clientName, importantNotice, currSym, mode);
+function printProposal(months, computed, phases, clientName, importantNotice, currSym, mode="detailed", fxRate=1, currCode="USD") {
+  const html = exportProposal(months, computed, phases, clientName, importantNotice, currSym, mode, fxRate, currCode);
   const closeScript = ["</scr", "ipt>"].join("");
   const printHTML = html.replace("</body>", `<script>
     window.onload = function() {
@@ -865,6 +896,7 @@ function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment, isAd
     { id:"proposal",      title:"Business Proposal Generator", description:"Generate comprehensive, branded business proposals tailored to client requirements and Avature solutions.",               icon:"📋", status:"live", color:"#2E6DB4" },
     { id:"ai-maturity",   title:"AI Maturity Self-Assessment", description:"Evaluate your organisation's AI readiness across key dimensions and receive a tailored roadmap.",                        icon:"🧠", status:"live", color:"#7C3AED" },
     { id:"admin-clients", title:"Client Portal Admin",         description:"Create client accounts, assign tools, and share secure portal links. Clients log in separately at ?portal.",              icon:"🏢", status:"live", color:"#0F766E", adminOnly:true },
+    { id:"portal-generator", title:"Portal Mockup Generator",   description:"Generate branded Avature portal screenshots for any prospect. Upload their logo, set brand colours and export presentation-ready screens.", icon:"🎨", status:"live", color:"#B45309", externalUrl:"https://avature-portal-generator-fwjjo5j5r.vercel.app" },
   ];
   const tools = allTools.filter(t => !t.adminOnly || isAdmin);
 
@@ -918,7 +950,8 @@ function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment, isAd
   };
 
   const fmtCost = (n, currency) => {
-    const sym = { USD:"$", EUR:"€", GBP:"£", AED:"AED " }[currency] || "$";
+    const cur = CURRENCIES.find(c => c.code === currency) || CURRENCIES[0];
+    const sym = cur.symbol;
     return sym + Number(n).toLocaleString();
   };
 
@@ -969,7 +1002,7 @@ function Dashboard({ onSelectTool, onSignOut, onLoadPlan, onLoadAssessment, isAd
           {tools.map(tool => {
             const isLive = tool.status === "live";
             return (
-              <div key={tool.id} className={"tool-card" + (isLive ? "" : " tool-card-disabled")} onClick={() => isLive && onSelectTool(tool.id)}
+              <div key={tool.id} className={"tool-card" + (isLive ? "" : " tool-card-disabled")} onClick={() => isLive && (tool.externalUrl ? window.open(tool.externalUrl, "_blank") : onSelectTool(tool.id))}
                 style={{ background:"#0D1117", border:"1px solid " + (isLive ? tool.color + "44" : "#1F2937"), borderRadius:16, padding:"28px 24px", boxShadow:"0 4px 24px rgba(0,0,0,0.3)", position:"relative", overflow:"hidden" }}>
                 <div style={{ position:"absolute", top:0, left:0, right:0, height:2, background: isLive ? "linear-gradient(90deg," + tool.color + "," + tool.color + "88)" : "#1F2937" }}/>
                 <div style={{ position:"absolute", top:18, right:18, display:"flex", gap:6, alignItems:"center" }}>
@@ -2182,7 +2215,7 @@ function DraggableGanttBar({ phase, idx, totalWeeks, onResize, onMove }) {
 }
 
 // ─── CLIENT DETAILS TAB ───────────────────────────────────────────────────────
-function ClientDetails({ clientName, setClientName, importantNotice, setImportantNotice, currency, setCurrency }) {
+function ClientDetails({ clientName, setClientName, importantNotice, setImportantNotice, currency, setCurrency, currObj, liveCurrencies: liveCurr }) {
   return (
     <div style={{background:"#0D1117",border:"1px solid #1F2937",borderRadius:12,padding:"28px"}}>
       <div style={{fontSize:13,color:"#6B7280",marginBottom:24,lineHeight:1.6}}>
@@ -2190,13 +2223,18 @@ function ClientDetails({ clientName, setClientName, importantNotice, setImportan
       </div>
 
       {/* Currency selector */}
+      {currency !== "USD" && (
+        <div style={{ fontSize:11, color: currObj?.live ? "#1A6B7C" : "#64748B", marginBottom:6, fontWeight:500 }}>
+          {currObj?.live ? "● " : ""}1 USD = {(currObj?.fxFromUSD||1) < 1 ? (currObj?.fxFromUSD||1).toFixed(3) : (currObj?.fxFromUSD||1) > 10 ? (currObj?.fxFromUSD||1).toFixed(1) : (currObj?.fxFromUSD||1).toFixed(2)} {currency} {currObj?.live ? "(live rate)" : "(indicative rate)"}
+        </div>
+      )}
       <div style={{marginBottom:28}}>
         <label style={{display:"block",fontSize:11,color:"#9CA3AF",marginBottom:10,
           textTransform:"uppercase",letterSpacing:"0.1em",fontWeight:600}}>
           Proposal Currency
         </label>
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          {CURRENCIES.map(c => (
+          {(liveCurr || CURRENCIES).map(c => (
             <button key={c.code} onClick={()=>setCurrency(c.code)} style={{
               background:currency===c.code?"#1B2A4A":"#111827",
               border:`1px solid ${currency===c.code?"#1A6B7C":"#1F2937"}`,
@@ -2297,7 +2335,7 @@ function ClientDetails({ clientName, setClientName, importantNotice, setImportan
 }
 
 // ─── RATE CARD TAB ────────────────────────────────────────────────────────────
-function RateCard({ resources, rateAdj, onRateAdjChange, onRateChange, onDaysChange, complexity, currSym }) {
+function RateCard({ resources, rateAdj, onRateAdjChange, onRateChange, onDaysChange, complexity, currSym, fxRate }) {
   const complexLabel = complexity<=25?"Standard":complexity<=50?"Moderate":complexity<=75?"Advanced":"Enterprise";
   const complexColor = complexity<=25?"#4ADE80":complexity<=50?"#FBBF24":complexity<=75?"#F97316":"#F87171";
   return (
@@ -2362,7 +2400,7 @@ function RateCard({ resources, rateAdj, onRateAdjChange, onRateChange, onDaysCha
                   </td>
                   <td style={{padding:"10px 12px",textAlign:"center",
                     color:rateAdj===0?"#9CA3AF":rateAdj>0?"#4ADE80":"#F87171",fontWeight:700}}>
-                    {fmtC(adj,currSym)}
+                    {fmtC(adj,currSym,fxRate)}
                   </td>
                   <td style={{padding:"10px 12px"}}><Pill>{r.phase}</Pill></td>
                 </tr>
@@ -2389,6 +2427,10 @@ export default function TMCalculator() {
   const [clientName, setClientName] = useState("");
   const [importantNotice, setImportantNotice] = useState(DEFAULT_NOTICE);
   const [currency, setCurrency] = useState("USD");
+  const [liveCurrencies, setLiveCurrencies] = useState(CURRENCIES);
+
+  // Fetch live FX rates on mount
+  useEffect(() => { fetchLiveFX(setLiveCurrencies); }, []);
   const [phaseLayout, setPhaseLayout] = useState(null);
   const [saving, setSaving] = useState(false);
   const [savedToast, setSavedToast] = useState(null);
@@ -2548,7 +2590,9 @@ export default function TMCalculator() {
     <AdminClients onBack={() => setScreen("dashboard")} />
   );
 
-  const currSym = CURRENCIES.find(c => c.code === currency)?.symbol || "$";
+  const currObj = liveCurrencies.find(c => c.code === currency) || CURRENCIES.find(c => c.code === currency) || CURRENCIES[0];
+  const currSym = currObj.symbol;
+  const fxRate  = currObj.fxFromUSD || 1;
   const computed = calcResources(resources, months, rateAdj, complexity);
 
   // Phase layout - each phase has independent start+duration; gaps are free space
@@ -2685,7 +2729,7 @@ export default function TMCalculator() {
                 </button>
               </div>
               <button className="export-btn"
-                onClick={()=>{ if(freeWeeks!==0){ return; } printProposal(months,computed,phases,clientName,importantNotice,currSym,proposalMode); handleSavePlan(); }}
+                onClick={()=>{ if(freeWeeks!==0){ return; } printProposal(months,computed,phases,clientName,importantNotice,currSym,proposalMode,fxRate,currency); handleSavePlan(); }}
                 style={{background: freeWeeks!==0 ? "#1F2937" : "linear-gradient(135deg,#1A6B7C,#155E6E)",
                   border:"none",color: freeWeeks!==0 ? "#4B5563" : "white",
                   borderRadius:8,padding:"9px 18px",fontSize:13,fontWeight:600,
@@ -2697,7 +2741,7 @@ export default function TMCalculator() {
                 <span style={{fontSize:15}}>⎙</span> Save as PDF
               </button>
               <button
-                onClick={()=>{ if(freeWeeks!==0){ return; } downloadProposal(months,computed,phases,clientName,importantNotice,currSym,proposalMode); }}
+                onClick={()=>{ if(freeWeeks!==0){ return; } downloadProposal(months,computed,phases,clientName,importantNotice,currSym,proposalMode,fxRate,currency); }}
                 style={{background:"transparent",
                   border:"1px solid " + (freeWeeks!==0 ? "#2D3748" : "#374151"),
                   color: freeWeeks!==0 ? "#374151" : "#9CA3AF",
@@ -2790,7 +2834,7 @@ export default function TMCalculator() {
           <div style={{marginLeft:"auto",display:"flex",gap:20,flexShrink:0}}>
             <div style={{textAlign:"center"}}>
               <div style={{fontSize:11,color:"#6B7280",marginBottom:2}}>Total</div>
-              <div style={{fontSize:20,fontWeight:700,color:"#C9A84C"}}>{fmtC(total,currSym)}</div>
+              <div style={{fontSize:20,fontWeight:700,color:"#C9A84C"}}>{fmtC(total,currSym,fxRate)}</div>
             </div>
             <div style={{textAlign:"center"}}>
               <div style={{fontSize:11,color:"#6B7280",marginBottom:2}}>vs 3mo baseline</div>
@@ -2805,9 +2849,9 @@ export default function TMCalculator() {
         {activeTab==="summary" && (
           <div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:28}}>
-              <KpiCard label="Total Investment" value={fmtC(total,currSym)} sub={`${totalDays} days · ${months} month${months>1?"s":""}`} accent/>
+              <KpiCard label="Total Investment" value={fmtC(total,currSym,fxRate)} sub={`${totalDays} days · ${months} month${months>1?"s":""}`} accent/>
               <KpiCard label="Consultant Days" value={`${totalDays} days`} sub="all Avature roles"/>
-              <KpiCard label="Blended Day Rate" value={fmtC(blended,currSym)} sub="weighted average"/>
+              <KpiCard label="Blended Day Rate" value={fmtC(blended,currSym,fxRate)} sub="weighted average"/>
             </div>
             <div style={{background:"#0D1117",border:"1px solid #1F2937",borderRadius:12,overflow:"hidden"}}>
               <div style={{padding:"16px 24px",borderBottom:"1px solid #1F2937",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
@@ -2832,12 +2876,12 @@ export default function TMCalculator() {
                       <tr key={r.id} style={{borderBottom:"1px solid #111827",background:i%2===0?"#060D18":"transparent"}}>
                         <td style={{padding:"11px 16px",color:"#F9FAFB",fontWeight:500}}>{r.role}</td>
                         <td style={{padding:"11px 16px",textAlign:"center",
-                          color:rateAdj===0?"#9CA3AF":rateAdj>0?"#4ADE80":"#F87171",fontWeight:600}}>{fmtC(r.adjRate,currSym)}</td>
+                          color:rateAdj===0?"#9CA3AF":rateAdj>0?"#4ADE80":"#F87171",fontWeight:600}}>{fmtC(r.adjRate,currSym,fxRate)}</td>
                         <td style={{padding:"11px 16px",textAlign:"center",color:"#D1D5DB"}}>
                           {r.scaledDays}
                           {r.complexDays>0&&<span style={{fontSize:10,color:complexColor,marginLeft:4}}>+{r.complexDays}</span>}
                         </td>
-                        <td style={{padding:"11px 16px",textAlign:"center",color:"#F9FAFB",fontWeight:600}}>{fmtC(r.cost,currSym)}</td>
+                        <td style={{padding:"11px 16px",textAlign:"center",color:"#F9FAFB",fontWeight:600}}>{fmtC(r.cost,currSym,fxRate)}</td>
                         <td style={{padding:"11px 16px",textAlign:"center"}}>
                           <div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"center"}}>
                             <div style={{width:60,height:4,background:"#1F2937",borderRadius:2,overflow:"hidden"}}>
@@ -2855,7 +2899,7 @@ export default function TMCalculator() {
                       <td style={{padding:"12px 16px",color:"#F9FAFB",fontWeight:700}}>TOTAL</td>
                       <td></td>
                       <td style={{padding:"12px 16px",textAlign:"center",color:"#F9FAFB",fontWeight:700}}>{totalDays}</td>
-                      <td style={{padding:"12px 16px",textAlign:"center",color:"#C9A84C",fontWeight:700,fontSize:16}}>{fmtC(total,currSym)}</td>
+                      <td style={{padding:"12px 16px",textAlign:"center",color:"#C9A84C",fontWeight:700,fontSize:16}}>{fmtC(total,currSym,fxRate)}</td>
                       <td></td><td></td>
                     </tr>
                   </tfoot>
@@ -2968,14 +3012,14 @@ export default function TMCalculator() {
           <RateCard resources={resources} rateAdj={rateAdj} onRateAdjChange={setRateAdj}
             onRateChange={(id,v)=>setResources(rs=>rs.map(r=>r.id===id?{...r,stdRate:v}:r))}
             onDaysChange={(id,v)=>setResources(rs=>rs.map(r=>r.id===id?{...r,baseDays:v}:r))}
-            complexity={complexity} currSym={currSym}/>
+            complexity={complexity} currSym={currSym} fxRate={fxRate}/>
         )}
 
         {/* ── CLIENT DETAILS ── */}
         {activeTab==="client" && (
           <ClientDetails clientName={clientName} setClientName={setClientName}
             importantNotice={importantNotice} setImportantNotice={setImportantNotice}
-            currency={currency} setCurrency={setCurrency}/>
+            currency={currency} setCurrency={setCurrency} currObj={currObj} liveCurrencies={liveCurrencies}/>
         )}
       </div>
     </div>
@@ -4537,7 +4581,7 @@ function Proposal({ deal, c, onBack, exportCSV }) {
           <div style={{ fontSize: 11, color: "#8898b8", lineHeight: 1.6 }}>
             Indicative pricing only. Subject to final scoping and contract terms.<br />
             Migrations estimated at $15,000 per tenant. Scoped items require separate assessment.<br />
-            All fees in USD.
+            All fees in USD. Time &amp; materials basis.
           </div>
           <div style={{ ...syne, fontSize: 13, fontWeight: 700, color: "#0D1B3E", textAlign: "right" }}>
             avature x randstad<br />
