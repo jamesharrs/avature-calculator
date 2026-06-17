@@ -127,7 +127,7 @@ function W_KpiRow({ brand, w, isMobile=false }) {
       {items.map((label,i) => (
         <div key={label} style={{ background:'white', borderRadius:8, padding:isMobile?'10px 8px':'12px 10px', textAlign:'center', border:'0.5px solid #e5e7eb' }}>
           <div style={{ width:'100%', height:3, borderRadius:2, background:brand.primary, marginBottom:isMobile?6:10 }} />
-          <div style={{ fontSize:isMobile?16:22, fontWeight:700, color:'#111', marginBottom:2 }}>{nums[i]||'–'}</div>
+          <div style={{ fontSize:isMobile?16:22, fontWeight:700, color:brand.primary, marginBottom:2 }}>{nums[i]||'–'}</div>
           <div style={{ fontSize:isMobile?8:10, color:'#777' }}>{label}</div>
         </div>
       ))}
@@ -146,7 +146,10 @@ function W_DataTable({ brand, w, isMobile=false }) {
 
   let rows;
   if (md.tableRows) {
-    rows = md.tableRows.slice(0,4);
+    const raw = md.tableRows;
+    const firstCell = (raw[0]?.[0]||'').toLowerCase();
+    const isHeaderRow = ['job title','name','job','role'].includes(firstCell) || cols.filter(c=>c!=='').map(c=>c.toLowerCase()).includes(firstCell);
+    rows = (isHeaderRow ? raw.slice(1) : raw).slice(0,4);
   } else if (isJobsTable) {
     rows = [
       ['Store Supervisor','Lagos Central','20','12','8','3','1'],
@@ -201,14 +204,17 @@ function W_DataTable({ brand, w, isMobile=false }) {
             {rows.map((row,ri) => (
               <tr key={ri} style={{ borderBottom:'0.5px solid #f5f5f5' }}>
                 {!isMobile && hasCheckbox && <td style={{ padding:'8px 10px' }}><input type="checkbox" /></td>}
-                {row.slice(0, isMobile?2:visibleCols.length).map((cell,ci) => (
-                  <td key={ci} style={{ padding:isMobile?'7px 8px':'9px 12px', color:ci===0?brand.primary:'#333', fontWeight:ci===0?500:400, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:ci===0?'pointer':'default' }}>
+                {row.slice(0, isMobile?2:visibleCols.length).map((cell,ci) => {
+                  const isNum = ci > 1 && !isNaN(cell) && cell !== '';
+                  return (
+                  <td key={ci} style={{ padding:isMobile?'7px 8px':'9px 12px', color:ci===0?brand.primary:isNum?brand.primary:'#333', fontWeight:ci===0||isNum?600:400, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:ci===0?'pointer':'default' }}>
                     {!isMobile && ci===row.length-1 && visibleCols[visibleCols.length-1]==='Action'
                       ? <button style={{ fontSize:9, padding:'2px 7px', border:`1px solid ${lighten(brand.primary,160)}`, borderRadius:4, background:'white', color:brand.primary, cursor:'pointer', fontWeight:500 }}>Actions ▾</button>
                       : cell
                     }
                   </td>
-                ))}
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -781,32 +787,32 @@ function PhoneFrame({ children, brand }) {
   );
 }
 
-async function generateMockData(brand) {
+async function generateMockData(brand, jobCount=8, candidateCount=10) {
   const prompt = `Generate realistic mock data for an Avature HR portal mockup for "${brand.company}", a ${brand.department} company.
 
 Return ONLY valid JSON (no markdown) with this exact structure:
 {
   "kpis": ["4","85","73","22","11"],
   "stats": ["3","81%","88%"],
-  "jobs": ["Job title 1","Job title 2","Job title 3","Job title 4"],
-  "departments": ["dept 1","dept 2","dept 3","dept 4"],
-  "locations": ["city 1","city 2","city 3","city 4"],
-  "candidates": [["Surname, Firstname","Current role","Current employer","Applying to"],["Surname, Firstname","Current role","Current employer","Applying to"],["Surname, Firstname","Current role","Current employer","Applying to"],["Surname, Firstname","Current role","Current employer","Applying to"]],
+  "jobs": [${Array.from({length:jobCount},(_,i)=>`"Job title ${i+1}"`).join(',')}],
+  "departments": [${Array.from({length:Math.min(jobCount,8)},(_,i)=>`"dept ${i+1}"`).join(',')}],
+  "locations": [${Array.from({length:Math.min(jobCount,8)},(_,i)=>`"city ${i+1}"`).join(',')}],
+  "candidates": [${Array.from({length:candidateCount},()=>'["Surname, Firstname","Current role","Current employer","Applying to"]').join(',')}],
   "employers": ["competitor 1","competitor 2","competitor 3"],
   "skills": ["skill 1","skill 2","skill 3","skill 4","skill 5"],
   "team": [{"name":"Full Name","role":"HR role"},{"name":"Full Name","role":"HR role"},{"name":"Full Name","role":"HR role"},{"name":"Full Name","role":"HR role"}],
   "notifications": [{"icon":"👤","text":"candidate name moved to stage","time":"2m ago"},{"icon":"📋","text":"New application for job title","time":"14m ago"},{"icon":"✅","text":"Offer accepted by name","time":"1h ago"}],
-  "tableRows": [["Job title","City","openings","shortlisted","interviewing","offers","onboarding"],["Job title","City","number","number","number","number","number"],["Job title","City","number","number","number","number","number"],["Job title","City","number","number","number","number","number"]]
+  "tableRows": [["Job title","City","openings","shortlisted","interviewing","offers","onboarding"],["Job title","City","num","num","num","num","num"],["Job title","City","num","num","num","num","num"],["Job title","City","num","num","num","num","num"]]
 }
 
-Use realistic data for the industry and geography. African names/cities if the company operates in Africa.`;
+Generate exactly ${jobCount} jobs and exactly ${candidateCount} candidates. Use realistic data for the industry and geography. African names/cities if the company operates in Africa. Numbers should be realistic (openings 2-50, shortlisted < openings*5, etc).`;
 
   const res = await fetch('/api/claude', {
     method:'POST',
     headers:{ 'Content-Type':'application/json' },
     body: JSON.stringify({
       model:'claude-sonnet-4-6',
-      max_tokens:1200,
+      max_tokens:4000,
       messages:[{ role:'user', content:prompt }],
     }),
   });
@@ -840,8 +846,8 @@ export default function PortalGenerator() {
   const [capturing, setCapturing]       = useState(false);
   const [isMobile, setIsMobile]         = useState(false);
   const [generating, setGenerating]     = useState(false);
-  const previewRef = useRef(null);
-  const screens = selectedTemplate?.screens || [];
+  const [genJobCount, setGenJobCount]           = useState(8);
+  const [genCandidateCount, setGenCandidateCount] = useState(10);
 
   const handleFile = useCallback((key, file) => {
     if (!file) return;
@@ -851,7 +857,7 @@ export default function PortalGenerator() {
   const handleGenerate = useCallback(async () => {
     setGenerating(true);
     try {
-      const data = await generateMockData(brand);
+      const data = await generateMockData(brand, genJobCount, genCandidateCount);
       setBrand(b => ({ ...b, mockData:data }));
     } catch(e) { alert('Generation failed: ' + e.message); }
     setGenerating(false);
@@ -916,6 +922,21 @@ export default function PortalGenerator() {
           <Sec title="✦ AI Data">
             <div style={{ fontSize:10, color:'#666', marginBottom:8, lineHeight:1.4 }}>
               Auto-fill jobs, candidates and locations to match your company & industry.
+            </div>
+            {/* Quantity controls */}
+            <div style={{ marginBottom:10 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
+                <label style={{ fontSize:10, color:'#666', fontWeight:500 }}>Jobs to generate</label>
+                <span style={{ fontSize:10, fontWeight:700, color:brand.primary }}>{genJobCount}</span>
+              </div>
+              <input type="range" min="1" max="50" value={genJobCount} onChange={e=>setGenJobCount(parseInt(e.target.value))}
+                style={{ width:'100%', accentColor:brand.primary, cursor:'pointer', marginBottom:8 }} />
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
+                <label style={{ fontSize:10, color:'#666', fontWeight:500 }}>Candidates to generate</label>
+                <span style={{ fontSize:10, fontWeight:700, color:brand.primary }}>{genCandidateCount}</span>
+              </div>
+              <input type="range" min="1" max="50" value={genCandidateCount} onChange={e=>setGenCandidateCount(parseInt(e.target.value))}
+                style={{ width:'100%', accentColor:brand.primary, cursor:'pointer' }} />
             </div>
             <button onClick={handleGenerate} disabled={generating}
               style={{ width:'100%', background:generating?'#f0f2f5':'linear-gradient(135deg,#6366f1,#4f46e5)', color:generating?'#888':'white', border:'none', borderRadius:6, padding:'9px 0', fontSize:12, fontWeight:600, cursor:generating?'not-allowed':'pointer', marginBottom:4 }}>
